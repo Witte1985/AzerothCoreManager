@@ -237,7 +237,6 @@ Frontend dev server runs on http://localhost:5173 with API proxy to backend.
 │   └── stacks/
 │       └── {stackId}/
 │           └── azerothcore-wotlk/
-├── plan/                     # Architecture analyses and planning docs
 ├── .github/
 │   ├── agents/               # Custom Copilot agent specifications
 │   └── copilot-instructions.md
@@ -343,10 +342,6 @@ When AzerothCore or installed modules have new commits:
 - **Build Times**: First build takes 15-30 minutes (compiles C++ from source)
 - **Disk Space**: Each stack uses ~5-10GB (build artifacts, databases, logs)
 
-## Documentation
-
-- [Planning & Analysis Documents](./plan/) - Architecture analyses, design docs, and implementation plans (see plan/README.md for index)
-
 ## Troubleshooting
 
 ### "Mounts denied" or "not shared from the host" errors
@@ -363,8 +358,6 @@ This is a Docker-in-Docker volume mounting issue. Fix:
    docker compose down
    docker compose up -d
    ```
-
-3. For detailed Docker troubleshooting, see the planning documents folder
 
 ### Port already in use
 
@@ -462,7 +455,7 @@ Contributions are welcome! This project is actively developed and accepting PRs.
 - Multi-architecture support (ARM64)
 
 **Nice to Have:**
-- MaNGOS server support (see `plan/MANGOS_INTEGRATION_ANALYSIS.md`)
+- MaNGOS server support
 - Module rating and reviews
 - One-click server cloning
 - Scheduled backups
