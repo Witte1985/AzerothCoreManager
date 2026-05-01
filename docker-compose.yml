@@ -1,0 +1,38 @@
+services:
+  azerothcore-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: azerothcore-manager
+    user: "0:0"  # Run as root to access Docker socket
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount Docker socket so container can control host's Docker daemon
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # Manager's data directory (stacks, builds, manager database)
+      # This bind mount provides persistence for the manager's own data
+      # ./data on HOST maps to /app/data in CONTAINER
+      # HOST_DATA_PATH environment variable tells the manager where this is on the HOST filesystem
+      # so it can generate correct volume mounts for nested AzerothCore containers
+      - ./data:/app/data
+      
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Docker__BuildsPath=/app/data/stacks
+      - Docker__HostDataPath=${HOST_DATA_PATH:-/app/data}
+      - Docker__ComposeCommand=plugin
+      # Manager's own database - persisted via ./data:/app/data volume mount above
+      # This is the MANAGER'S metadata DB, not an AzerothCore DB
+      # Uses container path /app/data because this runs INSIDE the manager container
+      # HOST_DATA_PATH is only for nested AzerothCore containers created by this manager
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/azerothcore-manager.db
+    restart: unless-stopped
+    networks:
+      - azerothcore-network
+
+networks:
+  azerothcore-network:
+    name: azerothcore-network
+    driver: bridge

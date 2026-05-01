@@ -1,0 +1,49 @@
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
+**/bin/
+**/obj/
+**/dist/
+**/node_modules/
+**/build/
+
+# Test outputs
+**/TestResults/
+**/*.trx
+
+# Frontend
+frontend/.next/
+frontend/.nuxt/
+frontend/coverage/
+frontend/.env.local
+frontend/.env.*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Backend
+backend/**/*.db
+backend/**/*.db-shm
+backend/**/*.db-wal
+backend/**/data/
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db

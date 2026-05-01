@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzerothCoreManager.Api", "AzerothCoreManager.Api\AzerothCoreManager.Api.csproj", "{28B98D3E-6767-4758-BF5D-FBC1B83CEDCA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzerothCoreManager.Core", "AzerothCoreManager.Core\AzerothCoreManager.Core.csproj", "{9DBDFA7B-9812-40F6-A3D1-770F265CE571}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzerothCoreManager.Infrastructure", "AzerothCoreManager.Infrastructure\AzerothCoreManager.Infrastructure.csproj", "{410BA073-8402-4C06-B585-5B4715A69904}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{28B98D3E-6767-4758-BF5D-FBC1B83CEDCA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28B98D3E-6767-4758-BF5D-FBC1B83CEDCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28B98D3E-6767-4758-BF5D-FBC1B83CEDCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28B98D3E-6767-4758-BF5D-FBC1B83CEDCA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9DBDFA7B-9812-40F6-A3D1-770F265CE571}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9DBDFA7B-9812-40F6-A3D1-770F265CE571}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9DBDFA7B-9812-40F6-A3D1-770F265CE571}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9DBDFA7B-9812-40F6-A3D1-770F265CE571}.Release|Any CPU.Build.0 = Release|Any CPU
+		{410BA073-8402-4C06-B585-5B4715A69904}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{410BA073-8402-4C06-B585-5B4715A69904}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{410BA073-8402-4C06-B585-5B4715A69904}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{410BA073-8402-4C06-B585-5B4715A69904}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
