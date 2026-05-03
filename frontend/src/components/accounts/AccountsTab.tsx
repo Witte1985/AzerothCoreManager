@@ -58,11 +58,41 @@ export default function AccountsTab({ stackId }: AccountsTabProps) {
   }
 
   if (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const isConnectionRefused = errorMessage.includes('Connection refused') || 
+                                errorMessage.includes('connect to any of the specified MySQL hosts')
+    
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-800">
-          Failed to load accounts. Make sure the server is running.
-        </p>
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+            <span className="text-yellow-600 text-xl">⚠️</span>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-yellow-900 mb-2">
+              {isConnectionRefused ? 'Stack Not Running' : 'Failed to Load Accounts'}
+            </h3>
+            {isConnectionRefused ? (
+              <div className="space-y-2 text-yellow-800">
+                <p>
+                  The MySQL database for this stack is not accessible. This usually means:
+                </p>
+                <ul className="list-disc list-inside ml-4 space-y-1">
+                  <li>The stack hasn't been built yet (use the wizard to build it)</li>
+                  <li>The stack containers are stopped (click "Start" on the Overview tab)</li>
+                  <li>The database container is still starting up (wait a moment and refresh)</li>
+                </ul>
+                <p className="mt-3">
+                  Go to the <strong>Overview</strong> tab to start the stack, then return here.
+                </p>
+              </div>
+            ) : (
+              <p className="text-yellow-800">
+                {errorMessage}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     )
   }

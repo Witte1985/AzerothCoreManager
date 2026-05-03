@@ -462,7 +462,7 @@ public sealed class StackService : IStackService
 
         var environment = new StringBuilder()
             .AppendLine("# AzerothCore Environment Configuration")
-            .AppendLine($"DOCKER_DB_ROOT_PASSWORD=\"{stack.DatabaseRootPassword}\"")
+            .AppendLine($"DOCKER_DB_ROOT_PASSWORD=\"{stack.DatabaseRootPassword.Replace("$", "$$")}\"")
             .AppendLine($"DOCKER_DB_EXTERNAL_PORT={stack.DatabasePort}")
             .AppendLine($"DOCKER_WORLD_EXTERNAL_PORT={stack.WorldServerPort}")
             .AppendLine($"DOCKER_SOAP_EXTERNAL_PORT={stack.SoapPort}")

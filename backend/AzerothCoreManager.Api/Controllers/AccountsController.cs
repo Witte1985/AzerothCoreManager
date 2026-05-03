@@ -37,7 +37,12 @@ public class AccountsController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { error = $"Failed to retrieve accounts: {ex.Message}" });
+            return StatusCode(500, new { 
+                error = $"Failed to retrieve accounts: {ex.Message}",
+                details = ex.InnerException?.Message,
+                type = ex.GetType().Name,
+                stackTrace = ex.StackTrace
+            });
         }
     }
 

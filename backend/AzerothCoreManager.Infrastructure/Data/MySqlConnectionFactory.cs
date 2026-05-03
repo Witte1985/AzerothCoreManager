@@ -37,10 +37,20 @@ public class MySqlConnectionFactory : IMySqlConnectionFactory
             _ => throw new ArgumentException($"Unknown database type: {database}. Valid values are: auth, world, characters", nameof(database))
         };
 
-        var containerName = $"ac-database-{stackId}";
-        var connectionString = $"Server={containerName};Port={stack.DatabasePort};Database={dbName};Uid=root;Pwd={stack.DatabaseRootPassword};AllowPublicKeyRetrieval=True;";
+        // Connect to localhost since the backend is running on the host machine
+        // The MySQL container exposes its port to the host
+        // Use MySqlConnectionStringBuilder to properly escape special characters in password
+        var builder = new MySqlConnectionStringBuilder
+        {
+            Server = "localhost",
+            Port = (uint)stack.DatabasePort,
+            Database = dbName,
+            UserID = "root",
+            Password = stack.DatabaseRootPassword,
+            AllowPublicKeyRetrieval = true
+        };
 
-        var connection = new MySqlConnection(connectionString);
+        var connection = new MySqlConnection(builder.ConnectionString);
         await connection.OpenAsync(cancellationToken);
         return connection;
     }

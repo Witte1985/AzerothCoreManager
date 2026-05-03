@@ -39,7 +39,7 @@ public class AccountManagementService : IAccountManagementService
                 COUNT(DISTINCT c.guid) AS CharacterCount,
                 MAX(c.online) AS IsOnline
             FROM account a
-            LEFT JOIN account_access aa ON a.id = aa.AccountID AND aa.RealmID = -1
+            LEFT JOIN account_access aa ON a.id = aa.id AND aa.RealmID = -1
             LEFT JOIN acore_characters.characters c ON c.account = a.id
             GROUP BY a.id, a.username, aa.gmlevel, a.last_login
             ORDER BY a.id";
