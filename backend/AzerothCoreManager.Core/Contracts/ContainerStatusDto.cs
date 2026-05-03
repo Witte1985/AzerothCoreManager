@@ -11,6 +11,11 @@ public class ContainerStatusDto
     public string Name { get; set; } = string.Empty;
     
     /// <summary>
+    /// Container ID (12-character short form)
+    /// </summary>
+    public string ContainerId { get; set; } = string.Empty;
+    
+    /// <summary>
     /// Current status (running, stopped, exited, etc.)
     /// </summary>
     public string Status { get; set; } = string.Empty;

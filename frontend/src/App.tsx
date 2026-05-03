@@ -5,6 +5,7 @@ import StackListPage from '@/pages/StackListPage'
 import StackDetailsPage from '@/pages/StackDetailsPage'
 import CreateStackWizardPage from '@/pages/CreateStackWizardPage'
 import BuildProgressPage from '@/pages/BuildProgressPage'
+import ContainerLogsPage from '@/pages/ContainerLogsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
           <Route path="stacks/new" element={<CreateStackWizardPage />} />
           <Route path="stacks/:stackId" element={<StackDetailsPage />} />
           <Route path="stacks/:stackId/build" element={<BuildProgressPage />} />
+          <Route path="stacks/:stackId/containers/:containerName/logs" element={<ContainerLogsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

@@ -47,40 +47,53 @@ public sealed class StackUpdateCheckerService : BackgroundService
 
         _logger.LogInformation("Stack update checker started (interval: {Interval})", _checkInterval);
 
-        // Optional startup delay to let system initialize
-        if (_startupDelay > TimeSpan.Zero)
+        try
         {
-            _logger.LogInformation("Delaying startup check for {Delay}", _startupDelay);
-            await Task.Delay(_startupDelay, stoppingToken);
-        }
-
-        // Check immediately on startup if configured
-        if (_checkOnStartup)
-        {
-            await CheckAllStacksAsync(stoppingToken);
-        }
-
-        // Then check periodically
-        using var timer = new PeriodicTimer(_checkInterval);
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
+            // Optional startup delay to let system initialize
+            if (_startupDelay > TimeSpan.Zero)
             {
-                await timer.WaitForNextTickAsync(stoppingToken);
+                _logger.LogInformation("Delaying startup check for {Delay}", _startupDelay);
+                await Task.Delay(_startupDelay, stoppingToken);
+            }
+
+            // Check immediately on startup if configured
+            if (_checkOnStartup)
+            {
                 await CheckAllStacksAsync(stoppingToken);
             }
-            catch (OperationCanceledException)
-            {
-                // Service is stopping
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in stack update checker timer loop");
-            }
-        }
 
-        _logger.LogInformation("Stack update checker stopped");
+            // Then check periodically
+            using var timer = new PeriodicTimer(_checkInterval);
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await timer.WaitForNextTickAsync(stoppingToken);
+                    await CheckAllStacksAsync(stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Service is stopping
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error in stack update checker timer loop");
+                }
+            }
+
+            _logger.LogInformation("Stack update checker stopped");
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal cancellation during shutdown or startup
+            _logger.LogInformation("Stack update checker cancelled");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Fatal error in stack update checker");
+            throw;
+        }
     }
 
     private async Task CheckAllStacksAsync(CancellationToken cancellationToken)

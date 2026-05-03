@@ -1,9 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Play, Square, RefreshCw, Plus, Loader2, Trash2, Hammer, AlertCircle } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import DeleteStackDialog from '@/components/DeleteStackDialog'
-import BuildProgressDialog from '@/components/BuildProgressDialog'
 import { useStacks } from '@/hooks/useStacks'
 import { stackApi, buildApi } from '@/services/api'
 import type { StackDetailsDto } from '@/types/stack.types'
@@ -35,10 +34,10 @@ function calculateStackUptime(stack: StackDetailsDto): string | null {
 }
 
 export default function StackListPage() {
+  const navigate = useNavigate()
   const { data: stacks = [], isLoading } = useStacks()
   const queryClient = useQueryClient()
   const [deletingStack, setDeletingStack] = useState<{ id: string; name: string } | null>(null)
-  const [rebuildingStack, setRebuildingStack] = useState<{ id: string; name: string } | null>(null)
 
   const startStack = useMutation({
     mutationFn: (stackId: string) => stackApi.start(stackId),
@@ -71,8 +70,10 @@ export default function StackListPage() {
 
   const rebuildStack = useMutation({
     mutationFn: (stackId: string) => buildApi.start(stackId), // No config = rebuild with existing config
-    onSuccess: () => {
+    onSuccess: (_data, stackId) => {
       queryClient.invalidateQueries({ queryKey: ['stacks'] })
+      // Navigate to build progress page
+      navigate(`/stacks/${stackId}/build`)
     },
   })
 
@@ -212,10 +213,7 @@ export default function StackListPage() {
                     {/* Rebuild button - available for Building/Failed states, or anytime really */}
                     {(stack.status === 'Building' || stack.status === 'Failed' || stack.status === 'Stopped') && (
                       <button
-                        onClick={() => {
-                          rebuildStack.mutate(stack.stackId)
-                          setRebuildingStack({ id: stack.stackId, name: stack.stackName })
-                        }}
+                        onClick={() => rebuildStack.mutate(stack.stackId)}
                         disabled={rebuildStack.isPending}
                         className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                         title={stack.status === 'Building' ? 'Retry build' : 'Rebuild stack'}
@@ -241,15 +239,6 @@ export default function StackListPage() {
             )
           })}
         </div>
-      )}
-
-      {/* Rebuild Progress Dialog */}
-      {rebuildingStack && (
-        <BuildProgressDialog
-          stackId={rebuildingStack.id}
-          stackName={rebuildingStack.name}
-          onClose={() => setRebuildingStack(null)}
-        />
       )}
 
       {/* Delete Confirmation Dialog */}

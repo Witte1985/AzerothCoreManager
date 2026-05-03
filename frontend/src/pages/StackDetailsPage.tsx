@@ -36,15 +36,26 @@ export default function StackDetailsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
+  const [recentLifecycleAction, setRecentLifecycleAction] = useState<number | null>(null)
 
-  // Fetch stack details with auto-refresh every 5 seconds if not stopped
+  // Fetch stack details with auto-refresh every 5 seconds
+  // Poll when: Running, Starting, Building, or within 30 seconds of a lifecycle action
   const { data: stack, isLoading, error } = useQuery({
     queryKey: stackKeys.detail(stackId!),
     queryFn: () => stackApi.get(stackId!).then(res => res.data),
     enabled: !!stackId,
     refetchInterval: (query) => {
       const status = query.state.data?.status
-      return status === StackStatus.Running || status === StackStatus.Starting ? 5000 : false
+      const shouldPollForStatus = 
+        status === StackStatus.Running || 
+        status === StackStatus.Starting ||
+        status === StackStatus.Building
+      
+      // Also poll for 30 seconds after any lifecycle action
+      const shouldPollForRecent = recentLifecycleAction && 
+        (Date.now() - recentLifecycleAction < 30000)
+      
+      return shouldPollForStatus || shouldPollForRecent ? 5000 : false
     },
   })
 
@@ -77,6 +88,7 @@ export default function StackDetailsPage() {
   const startMutation = useMutation({
     mutationFn: () => stackApi.start(stackId!),
     onSuccess: () => {
+      setRecentLifecycleAction(Date.now())
       queryClient.invalidateQueries({ queryKey: stackKeys.detail(stackId!) })
       queryClient.invalidateQueries({ queryKey: stackKeys.lists() })
     },
@@ -85,6 +97,7 @@ export default function StackDetailsPage() {
   const stopMutation = useMutation({
     mutationFn: () => stackApi.stop(stackId!),
     onSuccess: () => {
+      setRecentLifecycleAction(Date.now())
       queryClient.invalidateQueries({ queryKey: stackKeys.detail(stackId!) })
       queryClient.invalidateQueries({ queryKey: stackKeys.lists() })
     },
@@ -93,6 +106,7 @@ export default function StackDetailsPage() {
   const restartMutation = useMutation({
     mutationFn: () => stackApi.restart(stackId!),
     onSuccess: () => {
+      setRecentLifecycleAction(Date.now())
       queryClient.invalidateQueries({ queryKey: stackKeys.detail(stackId!) })
       queryClient.invalidateQueries({ queryKey: stackKeys.lists() })
     },
@@ -372,7 +386,11 @@ export default function StackDetailsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {stack.containers.map((container) => (
-              <div key={container.name} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <div 
+                key={container.name} 
+                onClick={() => navigate(`/stacks/${stackId}/containers/${encodeURIComponent(container.name)}/logs`)}
+                className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm cursor-pointer hover:border-blue-500 hover:shadow-md transition-all"
+              >
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-medium text-gray-900 text-sm truncate" title={container.name}>
                     {container.name.split('-').pop() || container.name}
@@ -394,6 +412,9 @@ export default function StackDetailsPage() {
                       {new Date(container.startedAt).toLocaleTimeString()}
                     </span>
                   </div>
+                </div>
+                <div className="mt-3 text-xs text-blue-600 font-medium">
+                  Click to view logs →
                 </div>
               </div>
             ))}

@@ -22,10 +22,10 @@ AzerothCore Manager is a comprehensive web application designed to simplify the 
 - 💾 **Draft Persistence** - Wizard automatically saves progress to localStorage
 - 🏗️ **Multi-Stack Support** - Manage unlimited AzerothCore environments simultaneously
 - 🔍 **Build Validation** - Pre-flight checks for port conflicts, name uniqueness, and resource requirements
+- 📜 **Build Log Streaming** - Real-time build logs with SignalR streaming in dedicated progress page
+- 📋 **Container Log Viewing** - Real-time log streaming with filtering, search, and auto-scrolling
 
 **🚧 In Progress:**
-- Real-time build log streaming (infrastructure ready, UI pending)
-- Container log viewing
 - SOAP command proxy for in-game administration
 
 **📋 Planned:**
@@ -104,10 +104,10 @@ The core functionality is **working and tested**:
 - ✅ Update detection and one-click updates
 - ✅ Module installation system
 - ✅ Configuration editing
+- ✅ Build log streaming UI with real-time SignalR updates
 
 **Known Limitations:**
 - No authentication/authorization yet (planned)
-- Build logs not visible in UI (SignalR hub ready, frontend pending)
 - SOAP proxy not implemented (planned)
 - No database backup/restore yet (planned)
 
@@ -441,8 +441,6 @@ Contributions are welcome! This project is actively developed and accepting PRs.
 ### Areas for Contribution
 
 **High Priority:**
-- Build log streaming UI (SignalR hub ready, needs frontend)
-- Container log viewing interface
 - SOAP command proxy implementation
 - Database backup/restore functionality
 - Authentication and authorization system
@@ -472,12 +470,7 @@ When reporting bugs, include:
 
 ## Roadmap
 
-**v0.2.0 - Real-Time Logging** (Next Release)
-- Build log streaming in UI
-- Container log viewer
-- Log filtering and search
-
-**v0.3.0 - SOAP Integration**
+**v0.2.0 - SOAP Integration** (Next Release)
 - SOAP command proxy
 - In-game player management
 - Server announcements from UI

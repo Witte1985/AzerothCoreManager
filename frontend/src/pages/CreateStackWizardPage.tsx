@@ -4,7 +4,6 @@ import { AlertCircle, X } from 'lucide-react'
 import type { Path } from 'react-hook-form'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
-import BuildProgressDialog from '@/components/BuildProgressDialog'
 import { StepIndicator, type WizardStep } from '@/components/wizard/StepIndicator'
 import { WizardNavigation } from '@/components/wizard/WizardNavigation'
 import { AdvancedStep } from '@/components/wizard/steps/AdvancedStep'
@@ -81,7 +80,6 @@ export default function CreateStackWizardPage() {
   const [pendingDraft, setPendingDraft] = useState<{ data: Partial<WizardFormData>; step: number } | null>(
     () => initialDraft
   )
-  const [buildingStack, setBuildingStack] = useState<{ stackId: string; stackName: string } | null>(null)
 
   const form = useForm<WizardFormData>({
     // @ts-expect-error: zodResolver input/output types mismatch with coerce
@@ -247,8 +245,8 @@ export default function CreateStackWizardPage() {
       
       clearDraft()
       
-      // Show build progress dialog
-      setBuildingStack({ stackId, stackName: config.stackName })
+      // Navigate to build progress page
+      navigate(`/stacks/${stackId}/build`)
     } catch (error: unknown) {
       console.error('[WIZARD] Error during stack creation:', error)
       const message = error instanceof Error
@@ -350,18 +348,6 @@ export default function CreateStackWizardPage() {
           />
         </div>
       </div>
-
-      {/* Build Progress Dialog */}
-      {buildingStack && (
-        <BuildProgressDialog
-          stackId={buildingStack.stackId}
-          stackName={buildingStack.stackName}
-          onClose={() => {
-            setBuildingStack(null)
-            navigate('/stacks')
-          }}
-        />
-      )}
     </div>
   )
 }

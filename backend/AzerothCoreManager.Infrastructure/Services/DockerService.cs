@@ -1,24 +1,33 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AzerothCoreManager.Core.Contracts;
 using AzerothCoreManager.Core.Services.Interfaces;
 using AzerothCoreManager.Infrastructure.Configuration;
+using Docker.DotNet;
+using Docker.DotNet.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AzerothCoreManager.Infrastructure.Services;
 
 /// <summary>
-/// Docker adapter using direct CLI calls.
+/// Docker adapter using direct CLI calls and Docker.DotNet for log streaming.
 /// </summary>
 public sealed class DockerService : IDockerService
 {
     private readonly ILogger<DockerService> _logger;
+    private readonly Lazy<DockerClient> _dockerClient;
 
     public DockerService(IOptions<DockerOptions> options, ILogger<DockerService> logger)
     {
         _logger = logger;
+        _dockerClient = new Lazy<DockerClient>(() =>
+        {
+            var config = new DockerClientConfiguration(new Uri("unix:///var/run/docker.sock"));
+            return config.CreateClient();
+        });
     }
 
     public async Task<bool> IsDockerAvailableAsync(CancellationToken cancellationToken = default)
@@ -121,6 +130,7 @@ public sealed class DockerService : IDockerService
                 {
                     containers.Add(new ContainerStatusDto
                     {
+                        ContainerId = container.ID,
                         Name = container.Names,
                         Status = container.State,
                         Health = ExtractHealth(container.Status),
@@ -135,6 +145,112 @@ public sealed class DockerService : IDockerService
         }
 
         return containers;
+    }
+
+    public async Task StreamContainerLogsAsync(
+        string containerId,
+        int tail,
+        Func<string, bool, Task> onLogReceived,
+        CancellationToken cancellationToken = default)
+    {
+        Process? process = null;
+        try
+        {
+            _logger.LogInformation("Starting log stream for container {ContainerId}, tail={Tail}", containerId, tail);
+
+            // Use docker CLI for log streaming since Docker.DotNet's API is problematic
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "docker",
+                Arguments = $"logs --follow --tail {tail} {containerId}",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            process = new Process { StartInfo = startInfo };
+            
+            // Handle stdout
+            process.OutputDataReceived += async (sender, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Data) && !cancellationToken.IsCancellationRequested)
+                {
+                    try
+                    {
+                        await onLogReceived(e.Data, false); // stdout
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing stdout log line");
+                    }
+                }
+            };
+
+            // Handle stderr
+            process.ErrorDataReceived += async (sender, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Data) && !cancellationToken.IsCancellationRequested)
+                {
+                    try
+                    {
+                        await onLogReceived(e.Data, true); // stderr
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing stderr log line");
+                    }
+                }
+            };
+
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            // Wait for cancellation or process exit
+            using var registration = cancellationToken.Register(() =>
+            {
+                try
+                {
+                    if (process != null && !process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error killing docker logs process");
+                }
+            });
+
+            await process.WaitForExitAsync(cancellationToken);
+
+            _logger.LogInformation("Log stream ended for container {ContainerId}", containerId);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Log stream cancelled for container {ContainerId}", containerId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error streaming logs for container {ContainerId}", containerId);
+            throw;
+        }
+        finally
+        {
+            if (process != null && !process.HasExited)
+            {
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                catch
+                {
+                    // Ignore
+                }
+            }
+            process?.Dispose();
+        }
     }
 
     private static string ExtractHealth(string status)
@@ -191,6 +307,9 @@ public sealed class DockerService : IDockerService
 
     private sealed class DockerPsJsonOutput
     {
+        [JsonPropertyName("ID")]
+        public string ID { get; set; } = string.Empty;
+
         [JsonPropertyName("Names")]
         public string Names { get; set; } = string.Empty;
 

@@ -27,8 +27,13 @@ try
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         });
     
-    // Add SignalR
-    builder.Services.AddSignalR();
+    // Add SignalR with optimized settings for real-time streaming
+    builder.Services.AddSignalR(options =>
+    {
+        options.KeepAliveInterval = TimeSpan.FromSeconds(5);
+        options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+        options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    });
 
     // Configure CORS
     builder.Services.AddCors(options =>
@@ -93,6 +98,7 @@ try
 
     app.MapHub<BuildProgressHub>("/hubs/buildprogress");
     app.MapHub<BuildProgressHub>("/hubs/build-progress");
+    app.MapHub<ContainerLogsHub>("/hubs/container-logs");
 
     // Fallback to index.html for client-side routing (SPA)
     app.MapFallbackToFile("index.html");
