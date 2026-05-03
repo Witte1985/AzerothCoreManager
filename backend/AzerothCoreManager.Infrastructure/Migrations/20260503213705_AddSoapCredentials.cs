@@ -15,14 +15,20 @@ namespace AzerothCoreManager.Infrastructure.Migrations
                 table: "ManagedStacks",
                 type: "TEXT",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: "admin");
 
             migrationBuilder.AddColumn<string>(
                 name: "SoapUsername",
                 table: "ManagedStacks",
                 type: "TEXT",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: "admin");
+                
+            // Update any existing rows that have empty values
+            migrationBuilder.Sql(
+                @"UPDATE ManagedStacks 
+                  SET SoapUsername = 'admin', SoapPassword = 'admin' 
+                  WHERE SoapUsername = '' OR SoapPassword = ''");
         }
 
         /// <inheritdoc />

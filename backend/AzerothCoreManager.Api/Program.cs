@@ -64,7 +64,10 @@ try
     await using (var scope = app.Services.CreateAsyncScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<AzerothCoreDbContext>();
+        
+        Log.Information("Applying database migrations...");
         await dbContext.Database.MigrateAsync();
+        Log.Information("Database migrations applied successfully");
         
         // Ensure builds directory exists
         var dockerOptions = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<DockerOptions>>().Value;
