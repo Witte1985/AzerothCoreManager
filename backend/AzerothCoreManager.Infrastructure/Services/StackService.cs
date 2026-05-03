@@ -77,6 +77,8 @@ public sealed class StackService : IStackService
             MaxPlayers = configuration.Advanced.MaxPlayers,
             RealmName = configuration.Advanced.RealmName.Trim(),
             CustomEnvVarsJson = JsonSerializer.Serialize(configuration.Advanced.CustomEnvVars, JsonOptions),
+            SoapUsername = configuration.Advanced.SoapUsername,
+            SoapPassword = configuration.Advanced.SoapPassword,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -119,6 +121,8 @@ public sealed class StackService : IStackService
         stack.MaxPlayers = configuration.Advanced.MaxPlayers;
         stack.RealmName = configuration.Advanced.RealmName.Trim();
         stack.CustomEnvVarsJson = JsonSerializer.Serialize(configuration.Advanced.CustomEnvVars, JsonOptions);
+        stack.SoapUsername = configuration.Advanced.SoapUsername;
+        stack.SoapPassword = configuration.Advanced.SoapPassword;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 

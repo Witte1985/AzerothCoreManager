@@ -1,0 +1,507 @@
+using AzerothCoreManager.Core.Contracts;
+using AzerothCoreManager.Core.Services.Interfaces;
+using Dapper;
+using Microsoft.Extensions.Logging;
+
+namespace AzerothCoreManager.Infrastructure.Services;
+
+/// <summary>
+/// Service for managing AzerothCore accounts and characters
+/// </summary>
+public class AccountManagementService : IAccountManagementService
+{
+    private readonly ISoapProxyService _soapProxy;
+    private readonly IMySqlConnectionFactory _connectionFactory;
+    private readonly ILogger<AccountManagementService> _logger;
+
+    public AccountManagementService(
+        ISoapProxyService soapProxy,
+        IMySqlConnectionFactory connectionFactory,
+        ILogger<AccountManagementService> logger)
+    {
+        _soapProxy = soapProxy;
+        _connectionFactory = connectionFactory;
+        _logger = logger;
+    }
+
+    #region Account Queries (MySQL)
+
+    public async Task<List<AccountDto>> GetAccountsAsync(string stackId, CancellationToken cancellationToken = default)
+    {
+        using var connection = await _connectionFactory.CreateConnectionAsync(stackId, "auth", cancellationToken);
+
+        var sql = @"
+            SELECT 
+                a.id AS Id,
+                a.username AS Username,
+                COALESCE(aa.gmlevel, 0) AS GmLevel,
+                a.last_login AS LastLogin,
+                COUNT(DISTINCT c.guid) AS CharacterCount,
+                MAX(c.online) AS IsOnline
+            FROM account a
+            LEFT JOIN account_access aa ON a.id = aa.AccountID AND aa.RealmID = -1
+            LEFT JOIN acore_characters.characters c ON c.account = a.id
+            GROUP BY a.id, a.username, aa.gmlevel, a.last_login
+            ORDER BY a.id";
+
+        var accounts = await connection.QueryAsync<AccountDto>(sql);
+        return accounts.ToList();
+    }
+
+    public async Task<List<CharacterDto>> GetCharactersAsync(string stackId, int accountId, CancellationToken cancellationToken = default)
+    {
+        using var connection = await _connectionFactory.CreateConnectionAsync(stackId, "characters", cancellationToken);
+
+        var sql = @"
+            SELECT 
+                guid AS Guid,
+                name AS Name,
+                account AS Account,
+                level AS Level,
+                race AS Race,
+                class AS Class,
+                gender AS Gender,
+                online AS Online,
+                totaltime AS TotalTime,
+                map AS Map,
+                position_x AS PositionX,
+                position_y AS PositionY,
+                position_z AS PositionZ
+            FROM characters 
+            WHERE account = @AccountId
+            ORDER BY level DESC, totaltime DESC";
+
+        var characters = await connection.QueryAsync<CharacterDto>(sql, new { AccountId = accountId });
+        return characters.ToList();
+    }
+
+    #endregion
+
+    #region Account Actions (SOAP)
+
+    public async Task<bool> CreateAccountAsync(string stackId, string username, string password, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"account create {username} {password}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("Account created", StringComparison.OrdinalIgnoreCase) ||
+                         result.Contains("created", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("Account {Username} created successfully on stack {StackId}", username, stackId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to create account {Username} on stack {StackId}: {Result}", username, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating account {Username} on stack {StackId}", username, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> SetGmLevelAsync(string stackId, string username, int level, int realmId = -1, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"account set gmlevel {username} {level} {realmId}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("changed", StringComparison.OrdinalIgnoreCase) ||
+                         result.Contains("success", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("GM level for account {Username} set to {Level} on stack {StackId}", username, level, stackId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to set GM level for account {Username} on stack {StackId}: {Result}", username, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error setting GM level for account {Username} on stack {StackId}", username, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> BanAccountAsync(string stackId, string username, string duration, string reason, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"ban account {username} {duration} {reason}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("banned", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("Account {Username} banned on stack {StackId} for {Duration}: {Reason}", username, stackId, duration, reason);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to ban account {Username} on stack {StackId}: {Result}", username, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error banning account {Username} on stack {StackId}", username, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> BanIpAsync(string stackId, string ip, string duration, string reason, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"ban ip {ip} {duration} {reason}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("banned", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("IP {Ip} banned on stack {StackId} for {Duration}: {Reason}", ip, stackId, duration, reason);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to ban IP {Ip} on stack {StackId}: {Result}", ip, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error banning IP {Ip} on stack {StackId}", ip, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> DeleteAccountAsync(string stackId, string username, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"account delete {username}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("deleted", StringComparison.OrdinalIgnoreCase) ||
+                         result.Contains("removed", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("Account {Username} deleted on stack {StackId}", username, stackId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to delete account {Username} on stack {StackId}: {Result}", username, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting account {Username} on stack {StackId}", username, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> SetPasswordAsync(string stackId, string username, string password, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"account set password {username} {password} {password}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("changed", StringComparison.OrdinalIgnoreCase) ||
+                         result.Contains("password", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("Password changed for account {Username} on stack {StackId}", username, stackId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to change password for account {Username} on stack {StackId}: {Result}", username, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error changing password for account {Username} on stack {StackId}", username, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> UnbanAccountAsync(string stackId, string username, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"unban account {username}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("unbanned", StringComparison.OrdinalIgnoreCase) ||
+                         result.Contains("removed", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("Account {Username} unbanned on stack {StackId}", username, stackId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to unban account {Username} on stack {StackId}: {Result}", username, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error unbanning account {Username} on stack {StackId}", username, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> UnbanIpAsync(string stackId, string ip, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"unban ip {ip}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("unbanned", StringComparison.OrdinalIgnoreCase) ||
+                         result.Contains("removed", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("IP {Ip} unbanned on stack {StackId}", ip, stackId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to unban IP {Ip} on stack {StackId}: {Result}", ip, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error unbanning IP {Ip} on stack {StackId}", ip, stackId);
+            return false;
+        }
+    }
+
+    #endregion
+
+    #region Character Actions (SOAP)
+
+    public async Task<bool> SendMessageAsync(string stackId, string characterName, string message, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"send message {characterName} {message}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = !result.Contains("not found", StringComparison.OrdinalIgnoreCase) &&
+                         !result.Contains("error", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("Message sent to character {CharacterName} on stack {StackId}", characterName, stackId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to send message to character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending message to character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> SendItemsAsync(string stackId, string characterName, int itemId, int count, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"send items {characterName} \"{characterName}\" \"Items\" \"Sent via Manager\" {itemId}:{count}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("Mail sent", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("Items sent to character {CharacterName} on stack {StackId}: {ItemId}x{Count}", characterName, stackId, itemId, count);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to send items to character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending items to character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> SendMoneyAsync(string stackId, string characterName, long copperAmount, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"send money {characterName} \"{characterName}\" \"Gold\" \"Sent via Manager\" {copperAmount}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("Mail sent", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("Money sent to character {CharacterName} on stack {StackId}: {Copper} copper", characterName, stackId, copperAmount);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to send money to character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending money to character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> KickPlayerAsync(string stackId, string characterName, string reason = "", CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = string.IsNullOrWhiteSpace(reason)
+                ? $"kick {characterName}"
+                : $"kick {characterName} {reason}";
+            
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("kicked", StringComparison.OrdinalIgnoreCase) ||
+                         result.Contains("Player kicked", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("Character {CharacterName} kicked from stack {StackId}", characterName, stackId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to kick character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error kicking character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> RenameCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"character rename {characterName}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("rename", StringComparison.OrdinalIgnoreCase) ||
+                         result.Contains("success", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("Character {CharacterName} marked for rename on stack {StackId}", characterName, stackId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to mark character {CharacterName} for rename on stack {StackId}: {Result}", characterName, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error marking character {CharacterName} for rename on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> CustomizeCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"character customize {characterName}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("customize", StringComparison.OrdinalIgnoreCase) ||
+                         result.Contains("success", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("Character {CharacterName} marked for customization on stack {StackId}", characterName, stackId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to mark character {CharacterName} for customization on stack {StackId}: {Result}", characterName, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error marking character {CharacterName} for customization on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> SetCharacterLevelAsync(string stackId, string characterName, int level, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"character level {characterName} {level}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+            
+            var success = result.Contains("level", StringComparison.OrdinalIgnoreCase) ||
+                         result.Contains("success", StringComparison.OrdinalIgnoreCase) ||
+                         result.Contains("changed", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+            {
+                _logger.LogInformation("Character {CharacterName} level set to {Level} on stack {StackId}", characterName, level, stackId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to set character {CharacterName} level on stack {StackId}: {Result}", characterName, stackId, result);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error setting character {CharacterName} level on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    #endregion
+}

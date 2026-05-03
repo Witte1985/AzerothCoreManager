@@ -6,6 +6,7 @@ import { useState, useMemo } from 'react'
 import { stackKeys } from '@/hooks/useStacks'
 import EditStackConfigModal from '@/components/EditStackConfigModal'
 import UpdateStackDialog from '@/components/UpdateStackDialog'
+import AccountsTab from '@/components/accounts/AccountsTab'
 
 // Helper to format commit SHAs safely
 const formatSha = (sha?: string | null): string => {
@@ -37,6 +38,7 @@ export default function StackDetailsPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
   const [recentLifecycleAction, setRecentLifecycleAction] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'logs'>('overview')
 
   // Fetch stack details with auto-refresh every 5 seconds
   // Poll when: Running, Starting, Building, or within 30 seconds of a lifecycle action
@@ -314,6 +316,96 @@ export default function StackDetailsPage() {
         </div>
       </div>
 
+      {/* Tabs Navigation */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex gap-6">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'overview'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('accounts')}
+            className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'accounts'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Accounts
+          </button>
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'logs'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Logs
+          </button>
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'accounts' && (
+        <AccountsTab stackId={stackId!} />
+      )}
+
+      {activeTab === 'logs' && (
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">Container Logs</h2>
+          {stack.containers.length === 0 ? (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+              <p className="text-gray-600">No containers running. Start the stack to see containers.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {stack.containers.map((container) => (
+                <div 
+                  key={container.name} 
+                  onClick={() => navigate(`/stacks/${stackId}/containers/${encodeURIComponent(container.name)}/logs`)}
+                  className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm cursor-pointer hover:border-blue-500 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-medium text-gray-900 text-sm truncate" title={container.name}>
+                      {container.name.split('-').pop() || container.name}
+                    </h3>
+                    <span className="text-lg ml-2" title={`Health: ${container.health}`}>
+                      {getHealthIcon(container.health)}
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">Status:</span>
+                      <span className={`font-medium ${getContainerStatusColor(container.status)}`}>
+                        {container.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">Started:</span>
+                      <span className="text-gray-700">
+                        {new Date(container.startedAt).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-xs text-blue-600 font-medium">
+                    Click to view logs →
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'overview' && (
+        <>
       {/* Updates Available Section */}
       {stack.updateStatus?.hasUpdates && (
         <div className="mb-8">
@@ -502,6 +594,8 @@ export default function StackDetailsPage() {
           )}
         </div>
       </div>
+        </>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (

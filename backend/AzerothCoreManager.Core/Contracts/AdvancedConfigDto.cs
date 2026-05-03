@@ -19,4 +19,14 @@ public class AdvancedConfigDto
     /// Custom environment variables for AzerothCore containers
     /// </summary>
     public Dictionary<string, string> CustomEnvVars { get; set; } = new();
+    
+    /// <summary>
+    /// SOAP admin username (default: admin)
+    /// </summary>
+    public string SoapUsername { get; set; } = "admin";
+    
+    /// <summary>
+    /// SOAP admin password (default: admin)
+    /// </summary>
+    public string SoapPassword { get; set; } = "admin";
 }

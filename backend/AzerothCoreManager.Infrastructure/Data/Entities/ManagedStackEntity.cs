@@ -34,6 +34,10 @@ public class ManagedStackEntity
     public string RealmName { get; set; } = string.Empty;
 
     public string CustomEnvVarsJson { get; set; } = "{}";
+    
+    public string SoapUsername { get; set; } = "admin";
+    
+    public string SoapPassword { get; set; } = "admin";
 
     public DateTime CreatedAt { get; set; }
     

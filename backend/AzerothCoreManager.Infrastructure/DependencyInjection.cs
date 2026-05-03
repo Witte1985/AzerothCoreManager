@@ -33,6 +33,9 @@ public static class DependencyInjection
 
         services.AddDbContext<AzerothCoreDbContext>(options => options.UseSqlite(connectionString));
         services.AddHttpClient();
+        services.AddScoped<IMySqlConnectionFactory, MySqlConnectionFactory>();
+        services.AddScoped<ISoapProxyService, SoapProxyService>();
+        services.AddScoped<IAccountManagementService, AccountManagementService>();
         services.AddScoped<IDockerService, DockerService>();
         services.AddScoped<IGitService, GitService>();
         services.AddScoped<IBuildService, BuildService>();
