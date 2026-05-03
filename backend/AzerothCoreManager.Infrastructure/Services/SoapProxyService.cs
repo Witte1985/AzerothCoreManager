@@ -38,10 +38,11 @@ public class SoapProxyService : ISoapProxyService
             throw new InvalidOperationException($"Stack '{stackId}' not found");
         }
 
-        var soapUrl = $"http://ac-worldserver-{stackId}:{stack.SoapPort}/";
+        // Use localhost since the API runs on the host, not inside Docker
+        var soapUrl = $"http://localhost:{stack.SoapPort}/";
         var soapEnvelope = BuildSoapEnvelope(command, stack.SoapUsername, stack.SoapPassword);
 
-        _logger.LogInformation("Executing SOAP command on stack {StackId}: {Command}", stackId, command);
+        _logger.LogInformation("Executing SOAP command on stack {StackId} via {SoapUrl}: {Command}", stackId, soapUrl, command);
 
         try
         {
