@@ -2,15 +2,10 @@
 export interface AccountDto {
   id: number
   username: string
-  isOnline: boolean
   gmLevel: number
-  expansion: number
-  lastIp: string
-  lastLogin: string
-  banDate: string | null
-  bannedBy: string | null
-  banReason: string | null
-  characters: CharacterDto[]
+  lastLogin: string | null
+  characterCount: number
+  isOnline: boolean
 }
 
 export interface CharacterDto {

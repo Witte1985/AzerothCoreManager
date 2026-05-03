@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Shield, Ban, Trash2, Key, X } from 'lucide-react'
 import type { AccountDto } from '@/types/account.types'
-import CharacterCard from './CharacterCard'
 import BanAccountDialog from './dialogs/BanAccountDialog'
 import SetPasswordDialog from './dialogs/SetPasswordDialog'
 import DeleteAccountDialog from './dialogs/DeleteAccountDialog'
@@ -72,7 +71,7 @@ export default function AccountDetailsPanel({ account, stackId, onClose }: Accou
     onClose()
   }
 
-  const isBanned = account.banDate !== null
+  const isBanned = false // Ban info not available yet
 
   return (
     <>
@@ -83,11 +82,6 @@ export default function AccountDetailsPanel({ account, stackId, onClose }: Accou
             {account.isOnline && (
               <span className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full">
                 🟢 Online
-              </span>
-            )}
-            {isBanned && (
-              <span className="px-3 py-1 bg-red-100 text-red-700 text-sm rounded-full">
-                ⛔ Banned
               </span>
             )}
           </div>
@@ -106,35 +100,14 @@ export default function AccountDetailsPanel({ account, stackId, onClose }: Accou
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="text-gray-600">Account ID:</div>
               <div className="font-medium">{account.id}</div>
-              <div className="text-gray-600">Last IP:</div>
-              <div className="font-medium">{account.lastIp || 'Never logged in'}</div>
               <div className="text-gray-600">Last Login:</div>
               <div className="font-medium">
                 {account.lastLogin ? new Date(account.lastLogin).toLocaleString() : 'Never'}
               </div>
               <div className="text-gray-600">Characters:</div>
-              <div className="font-medium">{account.characters.length}</div>
+              <div className="font-medium">{account.characterCount}</div>
             </div>
           </div>
-
-          {/* Ban Info */}
-          {isBanned && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <h4 className="font-semibold text-sm text-red-800 mb-2">Ban Information</h4>
-              <div className="text-sm space-y-1">
-                <p className="text-red-700">
-                  <span className="font-medium">Banned by:</span> {account.bannedBy || 'Unknown'}
-                </p>
-                <p className="text-red-700">
-                  <span className="font-medium">Reason:</span> {account.banReason || 'No reason given'}
-                </p>
-                <p className="text-red-700">
-                  <span className="font-medium">Date:</span>{' '}
-                  {account.banDate ? new Date(account.banDate).toLocaleString() : 'Unknown'}
-                </p>
-              </div>
-            </div>
-          )}
 
           {/* GM Level Control */}
           <div>
@@ -201,20 +174,11 @@ export default function AccountDetailsPanel({ account, stackId, onClose }: Accou
             </div>
           </div>
 
-          {/* Characters */}
-          <div>
-            <h4 className="font-semibold text-sm text-gray-700 mb-3">
-              Characters ({account.characters.length})
-            </h4>
-            {account.characters.length === 0 ? (
-              <p className="text-gray-500 text-sm text-center py-4">No characters found</p>
-            ) : (
-              <div className="space-y-3">
-                {account.characters.map((character) => (
-                  <CharacterCard key={character.guid} character={character} stackId={stackId} />
-                ))}
-              </div>
-            )}
+          {/* Characters - Coming Soon */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+            <p className="text-gray-600 text-sm">
+              Character details coming soon ({account.characterCount} total)
+            </p>
           </div>
         </div>
       </div>

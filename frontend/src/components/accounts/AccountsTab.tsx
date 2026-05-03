@@ -170,9 +170,6 @@ export default function AccountsTab({ stackId }: AccountsTabProps) {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{account.username}</span>
-                            {account.banDate && (
-                              <span className="text-xs text-red-600">🚫</span>
-                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -190,7 +187,7 @@ export default function AccountsTab({ stackId }: AccountsTabProps) {
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className="text-sm text-gray-600">
-                            {account.characters.length}
+                            {account.characterCount}
                           </span>
                         </td>
                       </tr>
