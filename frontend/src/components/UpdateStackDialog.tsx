@@ -17,14 +17,18 @@ export default function UpdateStackDialog({
   isUpdating,
 }: UpdateStackDialogProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <div className="mb-4 flex items-center gap-3">
-          <AlertTriangle className="h-6 w-6 text-amber-600" />
-          <h2 className="text-xl font-semibold text-gray-900">Update Stack</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+        <div className="border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900">Update Stack</h2>
+          </div>
         </div>
 
-        <div className="mb-6 space-y-4">
+        <div className="px-6 py-4 space-y-4">
           <p className="text-gray-700">
             You are about to update <strong>{stackName}</strong> to the latest version.
           </p>
@@ -54,18 +58,18 @@ export default function UpdateStackDialog({
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
           <button
             onClick={onCancel}
             disabled={isUpdating}
-            className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={isUpdating}
-            className="flex-1 flex items-center justify-center gap-2 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
           >
             {isUpdating ? (
               <>

@@ -125,7 +125,7 @@ export default function EditStackConfigModal({ stack, onClose }: EditStackConfig
   const isProcessing = isValidating || updateMutation.isPending
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-lg bg-white shadow-xl">
         {/* Header */}
         <div className="border-b border-gray-200 px-6 py-4 sticky top-0 bg-white">
