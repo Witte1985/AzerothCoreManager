@@ -103,7 +103,7 @@ export default function SendMessageDialog({ characterName, onClose, onSubmit }: 
             Cancel
           </button>
           <button
-            type="submit"
+            type="button"
             onClick={handleSubmit}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium"
             disabled={isSubmitting}
