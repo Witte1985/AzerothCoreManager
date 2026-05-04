@@ -1004,33 +1004,55 @@ public sealed class StackService : IStackService
             throw new InvalidOperationException($"Stack {stackId} has no running containers");
         }
 
-        var worldserverContainer = stackContainers
-            .FirstOrDefault(c => c.Name.Contains("worldserver", StringComparison.OrdinalIgnoreCase));
+        var databaseContainer = stackContainers
+            .FirstOrDefault(c => c.Name.Contains("database", StringComparison.OrdinalIgnoreCase));
 
-        if (worldserverContainer is null)
+        if (databaseContainer is null)
         {
-            throw new InvalidOperationException($"Worldserver container not found for stack {stackId}");
+            throw new InvalidOperationException($"Database container not found for stack {stackId}");
         }
 
-        if (!worldserverContainer.Status.Contains("running", StringComparison.OrdinalIgnoreCase) &&
-            !worldserverContainer.Status.Contains("up", StringComparison.OrdinalIgnoreCase))
+        if (!databaseContainer.Status.Contains("running", StringComparison.OrdinalIgnoreCase) &&
+            !databaseContainer.Status.Contains("up", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException($"Worldserver container is not running (status: {worldserverContainer.Status})");
+            throw new InvalidOperationException($"Database container is not running (status: {databaseContainer.Status})");
         }
 
-        // Execute account creation command via docker exec
-        var command = $"account create admin {stack.SoapPassword} 3 -1";
+        // Create admin account with SRP6 credentials
+        var username = "admin";
+        var password = stack.SoapPassword;
         
-        _logger.LogInformation("Creating admin account for stack {StackId} via worldserver-cli", stackId);
+        _logger.LogInformation("Creating admin account for stack {StackId} with SRP6 credentials", stackId);
         
         try
         {
+            // Calculate SRP6 salt and verifier
+            var (salt, verifier) = CalculateSrp6Credentials(username, password);
+            
+            // Convert to hex strings for SQL
+            var saltHex = BitConverter.ToString(salt).Replace("-", "");
+            var verifierHex = BitConverter.ToString(verifier).Replace("-", "");
+            
+            // SQL to create admin account with SRP6 credentials
+            var sql = $@"
+                INSERT INTO acore_auth.account (username, salt, verifier, email, reg_mail, joindate, expansion)
+                VALUES ('{username}', UNHEX('{saltHex}'), UNHEX('{verifierHex}'), '', '', NOW(), 2)
+                ON DUPLICATE KEY UPDATE 
+                    salt = UNHEX('{saltHex}'), 
+                    verifier = UNHEX('{verifierHex}');
+                
+                INSERT INTO acore_auth.account_access (id, gmlevel, RealmID)
+                SELECT id, 3, -1 FROM acore_auth.account WHERE username = '{username}'
+                ON DUPLICATE KEY UPDATE gmlevel = 3, RealmID = -1;
+            ";
+            
+            // Execute SQL via docker exec
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = "docker",
-                    Arguments = $"exec {worldserverContainer.Name} worldserver-cli {command}",
+                    Arguments = $"exec -i {databaseContainer.Name} mysql -uroot -p{stack.DatabaseRootPassword} -e \"{sql.Replace("\"", "\\\"")}\"",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -1045,11 +1067,18 @@ public sealed class StackService : IStackService
 
             if (process.ExitCode != 0)
             {
-                _logger.LogError("Failed to create admin account: {Error}", error);
-                throw new InvalidOperationException($"Failed to create admin account: {error}");
+                // Filter out password warning
+                var actualError = string.Join("\n", error.Split('\n')
+                    .Where(line => !line.Contains("Using a password on the command line")));
+                
+                if (!string.IsNullOrWhiteSpace(actualError))
+                {
+                    _logger.LogError("Failed to create admin account in database: {Error}", actualError);
+                    throw new InvalidOperationException($"Failed to create admin account: {actualError}");
+                }
             }
 
-            _logger.LogInformation("Admin account created successfully for stack {StackId}. Output: {Output}", stackId, output);
+            _logger.LogInformation("Admin account created successfully for stack {StackId}", stackId);
 
             // Mark as initialized
             stack.IsAdminAccountInitialized = true;
@@ -1060,9 +1089,49 @@ public sealed class StackService : IStackService
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
-            _logger.LogError(ex, "Error executing docker exec command for stack {StackId}", stackId);
-            throw new InvalidOperationException($"Failed to execute admin account creation: {ex.Message}", ex);
+            _logger.LogError(ex, "Error creating admin account for stack {StackId}", stackId);
+            throw new InvalidOperationException($"Failed to create admin account: {ex.Message}", ex);
         }
+    }
+    
+    private static (byte[] salt, byte[] verifier) CalculateSrp6Credentials(string username, string password)
+    {
+        // WoW uses username:password in UPPERCASE for SRP6
+        var identity = $"{username.ToUpperInvariant()}:{password.ToUpperInvariant()}";
+        
+        // Generate random 32-byte salt
+        var salt = new byte[32];
+        using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(salt);
+        }
+        
+        // Calculate x = H(salt, H(identity))
+        using var sha1 = System.Security.Cryptography.SHA1.Create();
+        var identityHash = sha1.ComputeHash(System.Text.Encoding.UTF8.GetBytes(identity));
+        
+        var saltAndHash = new byte[salt.Length + identityHash.Length];
+        Array.Copy(salt, 0, saltAndHash, 0, salt.Length);
+        Array.Copy(identityHash, 0, saltAndHash, salt.Length, identityHash.Length);
+        
+        var xHash = sha1.ComputeHash(saltAndHash);
+        var x = new System.Numerics.BigInteger(xHash, isUnsigned: true, isBigEndian: false);
+        
+        // SRP6 constants for WoW
+        var N = System.Numerics.BigInteger.Parse("0894B645E89E1535BBDAD5B8B290650530801B18EBFBF5E8FAB3C82872A3E9BB7", System.Globalization.NumberStyles.HexNumber);
+        var g = new System.Numerics.BigInteger(7);
+        
+        // Calculate verifier = g^x mod N
+        var verifier = System.Numerics.BigInteger.ModPow(g, x, N);
+        
+        // Convert to 32-byte little-endian format
+        var verifierBytes = verifier.ToByteArray(isUnsigned: true, isBigEndian: false);
+        
+        // Ensure exactly 32 bytes (pad with zeros if needed, truncate if too long)
+        var verifierResult = new byte[32];
+        Array.Copy(verifierBytes, 0, verifierResult, 0, Math.Min(verifierBytes.Length, 32));
+        
+        return (salt, verifierResult);
     }
 
     private static string GenerateSecurePassword(int length = 32)
