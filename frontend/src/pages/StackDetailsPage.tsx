@@ -41,7 +41,7 @@ export default function StackDetailsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'logs'>('overview')
 
   // Fetch stack details with auto-refresh every 5 seconds
-  // Poll when: Running, Starting, Building, or within 30 seconds of a lifecycle action
+  // Poll when: Running, Starting, Building, Degraded, Initializing, or within 30 seconds of a lifecycle action
   const { data: stack, isLoading, error } = useQuery({
     queryKey: stackKeys.detail(stackId!),
     queryFn: () => stackApi.get(stackId!).then(res => res.data),
@@ -51,7 +51,9 @@ export default function StackDetailsPage() {
       const shouldPollForStatus = 
         status === StackStatus.Running || 
         status === StackStatus.Starting ||
-        status === StackStatus.Building
+        status === StackStatus.Building ||
+        status === StackStatus.Degraded ||
+        status === StackStatus.Initializing
       
       // Also poll for 30 seconds after any lifecycle action
       const shouldPollForRecent = recentLifecycleAction && 
@@ -226,8 +228,8 @@ export default function StackDetailsPage() {
   }
 
   const canStart = stack.status === StackStatus.Stopped || stack.status === StackStatus.Failed
-  const canStop = stack.status === StackStatus.Running || stack.status === StackStatus.Starting
-  const canRestart = stack.status === StackStatus.Running
+  const canStop = stack.status === StackStatus.Running || stack.status === StackStatus.Starting || stack.status === StackStatus.Degraded || stack.status === StackStatus.Initializing
+  const canRestart = stack.status === StackStatus.Running || stack.status === StackStatus.Degraded
   const isTransitioning = startMutation.isPending || stopMutation.isPending || restartMutation.isPending
 
   return (
