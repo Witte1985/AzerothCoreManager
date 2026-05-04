@@ -4,6 +4,7 @@ using System.Xml.Linq;
 using AzerothCoreManager.Core.Services.Interfaces;
 using AzerothCoreManager.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace AzerothCoreManager.Infrastructure.Services;
@@ -16,15 +17,18 @@ public class SoapProxyService : ISoapProxyService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly AzerothCoreDbContext _dbContext;
     private readonly ILogger<SoapProxyService> _logger;
+    private readonly string _soapHost;
 
     public SoapProxyService(
         IHttpClientFactory httpClientFactory,
         AzerothCoreDbContext dbContext,
-        ILogger<SoapProxyService> logger)
+        ILogger<SoapProxyService> logger,
+        IConfiguration configuration)
     {
         _httpClientFactory = httpClientFactory;
         _dbContext = dbContext;
         _logger = logger;
+        _soapHost = configuration["SOAP:Host"] ?? "localhost";
     }
 
     public async Task<string> ExecuteCommandAsync(string stackId, string command, CancellationToken cancellationToken = default)
@@ -38,8 +42,8 @@ public class SoapProxyService : ISoapProxyService
             throw new InvalidOperationException($"Stack '{stackId}' not found");
         }
 
-        // Use localhost since the API runs on the host, not inside Docker
-        var soapUrl = $"http://localhost:{stack.SoapPort}/";
+        // Use configured host (localhost for local dev, host.docker.internal for Docker)
+        var soapUrl = $"http://{_soapHost}:{stack.SoapPort}/";
         var soapEnvelope = BuildSoapEnvelope(command, stack.SoapUsername, stack.SoapPassword);
 
         _logger.LogInformation("Executing SOAP command on stack {StackId} via {SoapUrl}: {Command}", stackId, soapUrl, command);

@@ -24,6 +24,7 @@ services:
       - Docker__HostDataPath=${HOST_DATA_PATH:-/app/data}
       - Docker__ComposeCommand=plugin
       - MySQL__Host=host.docker.internal
+      - SOAP__Host=host.docker.internal
       # Manager's own database - persisted via ./data:/app/data volume mount above
       # This is the MANAGER'S metadata DB, not an AzerothCore DB
       # Uses container path /app/data because this runs INSIDE the manager container
