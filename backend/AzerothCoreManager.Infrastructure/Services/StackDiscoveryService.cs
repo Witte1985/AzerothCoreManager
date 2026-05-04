@@ -385,7 +385,17 @@ public class StackDiscoveryService : IStackDiscoveryService
                     continue;
 
                 var key = parts[0].Trim();
-                var value = parts[1].Trim().Trim('"');
+                var value = parts[1].Trim();
+                
+                // Remove surrounding quotes if present
+                if (value.StartsWith('"') && value.EndsWith('"'))
+                {
+                    value = value.Substring(1, value.Length - 2);
+                }
+                
+                // Note: In .env files, $$ is used to represent a literal $.
+                // We keep $$ as-is since that's what Docker Compose expects.
+                // No unescaping needed here - pass through verbatim.
 
                 switch (key)
                 {

@@ -852,10 +852,13 @@ public sealed class StackService : IStackService
 
         // 1. Discover the stack
         var discovered = await _stackDiscoveryService.DiscoverStackByIdAsync(stackId, cancellationToken);
-        if (discovered == null || discovered.IsOrphaned)
+        if (discovered == null)
         {
             throw new StackNotFoundException(stackId);
         }
+        
+        // Allow orphaned stacks - they will be imported with "Stopped" status
+        // User can rebuild them later from the UI
 
         // 2. Validate no conflicts
         await ValidateImportAsync(stackId, discovered, cancellationToken);
@@ -930,7 +933,7 @@ public sealed class StackService : IStackService
             StackName = request.StackName,
             NormalizedStackName = request.StackName.ToUpperInvariant(),
             ServerType = discovered.InferredServerType,
-            Status = discovered.CurrentStatus,
+            Status = discovered.IsOrphaned ? StackStatus.Stopped : discovered.CurrentStatus,
             
             // Ports from discovery
             DatabasePort = discovered.DatabasePort,
