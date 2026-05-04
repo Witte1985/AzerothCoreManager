@@ -24,12 +24,11 @@ AzerothCore Manager is a comprehensive web application designed to simplify the 
 - 🔍 **Build Validation** - Pre-flight checks for port conflicts, name uniqueness, and resource requirements
 - 📜 **Build Log Streaming** - Real-time build logs with SignalR streaming in dedicated progress page
 - 📋 **Container Log Viewing** - Real-time log streaming with filtering, search, and auto-scrolling
-
-**🚧 In Progress:**
-- SOAP command proxy for in-game administration
+- 👥 **Account Management** - Create accounts, set GM levels, ban/unban users, reset passwords, and delete accounts via SOAP
 
 **📋 Planned:**
 - Advanced configuration editor (300+ worldserver.conf settings)
+- In-game player management (teleport, kick, announce)
 - Database backup and restore
 - Performance metrics and analytics
 - Authentication and role-based access control
@@ -105,10 +104,12 @@ The core functionality is **working and tested**:
 - ✅ Module installation system
 - ✅ Configuration editing
 - ✅ Build log streaming UI with real-time SignalR updates
+- ✅ Container log viewing with real-time updates
+- ✅ Account management (SOAP-based)
 
 **Known Limitations:**
 - No authentication/authorization yet (planned)
-- SOAP proxy not implemented (planned)
+- In-game player management not implemented (planned)
 - No database backup/restore yet (planned)
 
 ## Requirements
@@ -326,6 +327,56 @@ When AzerothCore or installed modules have new commits:
 5. Update clears immediately after build completes (no stale notifications)
 6. Start stack to use updated version
 
+### Managing Accounts
+
+The **Accounts** tab in Stack Details provides comprehensive account management:
+
+**Viewing Accounts:**
+- View all accounts from the `acore_auth` database
+- See account ID, username, GM level, character count, online status, and last login
+- Real-time online status indicators
+- **BANNED** badge for banned accounts
+
+**Creating Accounts:**
+- Click "Create Account" to open the creation dialog
+- Enter username and password (auto-generated or custom)
+- Account created via SOAP command to worldserver
+- Success confirmation displayed
+
+**Setting GM Levels:**
+- Select account from the list to open details panel
+- Choose GM level from dropdown (0-3):
+  - 0 - Player (default)
+  - 1 - Moderator
+  - 2 - Game Master
+  - 3 - Administrator
+- Click "Set Level" to apply changes
+- Success confirmation displayed
+
+**Banning Accounts:**
+- Select account and click "Ban Account"
+- Enter ban duration (e.g., "2h", "7d", "permanent")
+- Provide ban reason for record keeping
+- Banned accounts show red "BANNED" badge
+- Ban details displayed in account panel (reason, expiry, banned by)
+
+**Unbanning Accounts:**
+- Select banned account (shows "Unban Account" button)
+- Confirm unban action
+- Ban immediately removed
+
+**Resetting Passwords:**
+- Select account and click "Reset Password"
+- Enter new password (auto-generated or custom)
+- Password changed via SOAP command
+
+**Deleting Accounts:**
+- Select account and click "Delete Account"
+- Confirm deletion in dialog
+- Account permanently removed from database
+
+All account operations require the worldserver to be running and use SOAP authentication with the admin account.
+
 ### Monitoring
 
 - **Container Status**: Live updates every 5 seconds when stack is running
@@ -441,12 +492,12 @@ Contributions are welcome! This project is actively developed and accepting PRs.
 ### Areas for Contribution
 
 **High Priority:**
-- SOAP command proxy implementation
+- In-game player management (teleport, kick, announce)
+- Advanced worldserver.conf editor
 - Database backup/restore functionality
 - Authentication and authorization system
 
 **Medium Priority:**
-- Advanced worldserver.conf editor
 - Performance metrics dashboard
 - Automated testing (unit, integration, E2E)
 - Docker image optimization (reduce size)
@@ -470,10 +521,15 @@ When reporting bugs, include:
 
 ## Roadmap
 
-**v0.2.0 - SOAP Integration** (Next Release)
-- SOAP command proxy
-- In-game player management
-- Server announcements from UI
+**v0.2.0 - Player Management** (Next Release)
+- In-game player teleportation
+- Player kick/ban from world
+- Server-wide announcements
+
+**v0.3.0 - Advanced Configuration**
+- worldserver.conf editor (300+ settings)
+- Configuration templates
+- Preset management
 
 **v0.4.0 - Backup & Recovery**
 - Database backup automation
