@@ -64,4 +64,20 @@ public class ManagedStackEntity
     public string OutdatedModulesJson { get; set; } = "[]";
     
     public DateTime? LastUpdateCheckAt { get; set; }
+    
+    // ===== CI/CD Build Status (cached with update checks) =====
+    /// <summary>
+    /// CI build status for the latest available core version: "success", "failure", "pending", "unknown"
+    /// </summary>
+    public string? LatestCoreBuildStatus { get; set; }
+    
+    /// <summary>
+    /// JSON array of critical CI check results for latest core version
+    /// </summary>
+    public string? LatestCoreBuildChecksJson { get; set; }
+    
+    /// <summary>
+    /// When the CI build status was last checked
+    /// </summary>
+    public DateTime? LatestCoreBuildStatusCheckedAt { get; set; }
 }

@@ -31,8 +31,14 @@ public static class DependencyInjection
             .Bind(configuration.GetSection("StackUpdateChecker"))
             .ValidateOnStart();
 
+        services
+            .AddOptions<GitHubOptions>()
+            .Bind(configuration.GetSection("GitHub"))
+            .ValidateOnStart();
+
         services.AddDbContext<AzerothCoreDbContext>(options => options.UseSqlite(connectionString));
         services.AddHttpClient();
+        services.AddHttpClient("GitHubApi"); // Dedicated client for GitHub API
         services.AddScoped<IMySqlConnectionFactory, MySqlConnectionFactory>();
         services.AddScoped<ISoapProxyService, SoapProxyService>();
         services.AddScoped<IAccountManagementService, AccountManagementService>();
@@ -44,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<IStackConfigurationValidator, StackConfigurationValidator>();
         services.AddScoped<IStackService, StackService>();
         services.AddScoped<IStackVersionService, StackVersionService>();
+        services.AddScoped<IGitHubApiService, GitHubApiService>();
 
         // Register module configuration parsers
         services.AddScoped<IModuleConfigParser, PlayerbotConfigParser>();

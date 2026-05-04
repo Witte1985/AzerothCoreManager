@@ -36,4 +36,9 @@ public class StackUpdateStatusDto
     public List<ModuleVersionStatusDto> OutdatedModules { get; set; } = new();
     
     public DateTime? LastCheckedAt { get; set; }
+    
+    /// <summary>
+    /// CI/CD build status for the latest available core version (if available)
+    /// </summary>
+    public CiBuildStatusDto? LatestCoreBuildStatus { get; set; }
 }
