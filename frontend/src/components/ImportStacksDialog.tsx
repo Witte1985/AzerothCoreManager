@@ -197,7 +197,7 @@ export function ImportStacksDialog({ isOpen, onClose, onImportSuccess }: ImportS
                     <div className="flex items-start gap-2 p-3 mb-3 bg-yellow-50 border border-yellow-200 rounded-md">
                       <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
                       <div className="text-sm text-yellow-800">
-                        <strong>Cannot Import:</strong> No Docker containers found for this stack
+                        <strong>Orphaned Stack:</strong> No Docker containers found. You can import this stack and rebuild it later.
                       </div>
                     </div>
                   )}
@@ -238,44 +238,42 @@ export function ImportStacksDialog({ isOpen, onClose, onImportSuccess }: ImportS
                     </div>
                   )}
 
-                  {/* Import Form */}
-                  {!stack.isOrphaned && (
-                    <div className="flex items-center gap-3 pt-3 border-t border-gray-200">
-                      <label className="flex-1">
-                        <span className="text-sm font-medium text-gray-700 mb-1 block">
-                          Stack Name
-                        </span>
-                        <input
-                          type="text"
-                          value={importNames[stack.stackId] || stack.suggestedName}
-                          onChange={(e) => setImportNames(prev => ({
-                            ...prev,
-                            [stack.stackId]: e.target.value
-                          }))}
-                          disabled={importing[stack.stackId]}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                          placeholder="Enter stack name"
-                        />
-                      </label>
-                      <button
-                        onClick={() => handleImport(stack)}
-                        disabled={importing[stack.stackId] || !importNames[stack.stackId]?.trim()}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2 mt-6"
-                      >
-                        {importing[stack.stackId] ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Importing...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="w-4 h-4" />
-                            Import
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
+                  {/* Import Form - Always show, orphaned stacks can be imported too */}
+                  <div className="flex items-center gap-3 pt-3 border-t border-gray-200">
+                    <label className="flex-1">
+                      <span className="text-sm font-medium text-gray-700 mb-1 block">
+                        Stack Name
+                      </span>
+                      <input
+                        type="text"
+                        value={importNames[stack.stackId] || stack.suggestedName}
+                        onChange={(e) => setImportNames(prev => ({
+                          ...prev,
+                          [stack.stackId]: e.target.value
+                        }))}
+                        disabled={importing[stack.stackId]}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                        placeholder="Enter stack name"
+                      />
+                    </label>
+                    <button
+                      onClick={() => handleImport(stack)}
+                      disabled={importing[stack.stackId] || !importNames[stack.stackId]?.trim()}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2 mt-6"
+                    >
+                      {importing[stack.stackId] ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          Import
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
