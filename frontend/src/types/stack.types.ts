@@ -77,6 +77,22 @@ export interface ModuleVersionStatusDto {
   latestCommitSha?: string
 }
 
+export interface CiCheckDto {
+  name: string
+  status: string
+  conclusion?: string
+  htmlUrl?: string
+}
+
+export interface CiBuildStatusDto {
+  status: string // "success", "failure", "pending", "unknown"
+  criticalChecks: CiCheckDto[]
+  checkedAt: string
+  totalChecks: number
+  passedChecks: number
+  failedChecks: number
+}
+
 export interface StackUpdateStatusDto {
   stackId: string
   hasUpdates: boolean
@@ -86,6 +102,7 @@ export interface StackUpdateStatusDto {
   latestCoreSha?: string
   outdatedModules: ModuleVersionStatusDto[]
   lastCheckedAt?: string
+  latestCoreBuildStatus?: CiBuildStatusDto
 }
 
 export interface StackDetailsDto {

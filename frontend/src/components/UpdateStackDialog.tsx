@@ -1,5 +1,6 @@
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import type { StackUpdateStatusDto } from '@/types/stack.types'
+import { CiBuildStatusBadge } from './CiBuildStatusBadge'
 
 interface UpdateStackDialogProps {
   stackName: string
@@ -32,6 +33,14 @@ export default function UpdateStackDialog({
           <p className="text-gray-700">
             You are about to update <strong>{stackName}</strong> to the latest version.
           </p>
+
+          {/* CI Build Status */}
+          {updateStatus.latestCoreBuildStatus && (
+            <CiBuildStatusBadge 
+              status={updateStatus.latestCoreBuildStatus} 
+              showDetails={true}
+            />
+          )}
 
           <div className="rounded-md bg-amber-50 border border-amber-200 p-4">
             <h3 className="font-medium text-amber-900 mb-2">What will happen:</h3>
