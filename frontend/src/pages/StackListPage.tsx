@@ -6,6 +6,7 @@ import DeleteStackDialog from '@/components/DeleteStackDialog'
 import { useStacks } from '@/hooks/useStacks'
 import { stackApi, buildApi } from '@/services/api'
 import type { StackDetailsDto } from '@/types/stack.types'
+import { StackStatus } from '@/types/stack.types'
 
 // Calculate stack uptime from containers
 function calculateStackUptime(stack: StackDetailsDto): string | null {
@@ -30,6 +31,27 @@ function calculateStackUptime(stack: StackDetailsDto): string | null {
     return `${uptimeHours}h ${remainingMinutes}m`
   } else {
     return `${uptimeMinutes}m`
+  }
+}
+
+function getStatusBadgeColor(status: StackStatus): string {
+  switch (status) {
+    case StackStatus.Running:
+      return 'bg-green-100 text-green-800'
+    case StackStatus.Initializing:
+      return 'bg-blue-100 text-blue-800'
+    case StackStatus.Starting:
+      return 'bg-yellow-100 text-yellow-800'
+    case StackStatus.Degraded:
+      return 'bg-orange-100 text-orange-800'
+    case StackStatus.Stopped:
+      return 'bg-gray-100 text-gray-800'
+    case StackStatus.Building:
+      return 'bg-blue-100 text-blue-800'
+    case StackStatus.Failed:
+      return 'bg-red-100 text-red-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
   }
 }
 
@@ -135,13 +157,7 @@ export default function StackListPage() {
                         {stack.stackName}
                       </Link>
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          isRunning
-                            ? 'bg-green-100 text-green-800'
-                            : isStopped
-                            ? 'bg-gray-100 text-gray-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeColor(stack.status)}`}
                       >
                         {stack.status}
                       </span>

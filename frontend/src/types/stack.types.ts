@@ -16,7 +16,9 @@ export enum BuildPhase {
 export enum StackStatus {
   Building = 'Building',
   Stopped = 'Stopped',
+  Initializing = 'Initializing',
   Starting = 'Starting',
+  Degraded = 'Degraded',
   Running = 'Running',
   Failed = 'Failed',
 }

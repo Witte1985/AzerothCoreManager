@@ -399,14 +399,18 @@ public sealed class StackService : IStackService
             LastCheckedAt = stack.LastUpdateCheckAt
         };
 
+        // Get containers and determine actual runtime status
+        var containers = await GetContainersAsync(stack.Id, cancellationToken);
+        var runtimeStatus = DetermineRuntimeStatus(stack.Status, containers);
+
         return new StackDetailsDto
         {
             StackId = stack.Id,
             StackName = stack.StackName,
             ServerType = stack.ServerType,
-            Status = stack.Status,
+            Status = runtimeStatus,
             CreatedAt = stack.CreatedAt,
-            Containers = await GetContainersAsync(stack.Id, cancellationToken),
+            Containers = containers,
             Configuration = new StackConfigurationDto
             {
                 StackName = stack.StackName,
@@ -445,6 +449,81 @@ public sealed class StackService : IStackService
         {
             return [];
         }
+    }
+
+    /// <summary>
+    /// Determines the actual runtime status based on container states.
+    /// Required containers: database, authserver, worldserver
+    /// Init containers: db-import, client-data-init
+    /// </summary>
+    private static StackStatus DetermineRuntimeStatus(StackStatus dbStatus, List<ContainerStatusDto> containers)
+    {
+        // If currently building, don't override
+        if (dbStatus == StackStatus.Building)
+        {
+            return StackStatus.Building;
+        }
+
+        // No containers means stack not deployed yet or all removed
+        if (containers.Count == 0)
+        {
+            return StackStatus.Stopped;
+        }
+
+        // Check for first-time initialization containers (db-import, client-data-init)
+        var initContainers = containers
+            .Where(c => c.Name.Contains("db-import", StringComparison.OrdinalIgnoreCase) || 
+                       c.Name.Contains("client-data-init", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var anyInitRunning = initContainers.Any(c => c.Status.Equals("running", StringComparison.OrdinalIgnoreCase));
+
+        // If init containers are running, stack is initializing
+        if (anyInitRunning)
+        {
+            return StackStatus.Initializing;
+        }
+
+        // Check required service containers
+        var requiredContainers = containers
+            .Where(c => RequiredRunningServiceNames.Any(service => c.Name.Contains(service, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (requiredContainers.Count == 0)
+        {
+            return StackStatus.Stopped;
+        }
+
+        // Group by service type to detect missing or stopped services
+        var databaseRunning = requiredContainers.Any(c => 
+            c.Name.Contains("database", StringComparison.OrdinalIgnoreCase) && 
+            c.Status.Equals("running", StringComparison.OrdinalIgnoreCase));
+        
+        var authserverRunning = requiredContainers.Any(c => 
+            c.Name.Contains("authserver", StringComparison.OrdinalIgnoreCase) && 
+            c.Status.Equals("running", StringComparison.OrdinalIgnoreCase));
+        
+        var worldserverRunning = requiredContainers.Any(c => 
+            c.Name.Contains("worldserver", StringComparison.OrdinalIgnoreCase) && 
+            c.Status.Equals("running", StringComparison.OrdinalIgnoreCase));
+
+        var runningCount = (databaseRunning ? 1 : 0) + (authserverRunning ? 1 : 0) + (worldserverRunning ? 1 : 0);
+
+        // All 3 required services running = healthy
+        if (runningCount == 3)
+        {
+            return StackStatus.Running;
+        }
+
+        // None running = stopped
+        if (runningCount == 0)
+        {
+            return StackStatus.Stopped;
+        }
+
+        // Some running, some not = degraded (e.g., worldserver crash-looping)
+        // This indicates a problem but stack is partially operational
+        return StackStatus.Degraded;
     }
 
     private async Task EnsureRuntimeConfigurationAsync(
