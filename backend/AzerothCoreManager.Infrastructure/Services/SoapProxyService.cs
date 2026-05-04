@@ -52,6 +52,11 @@ public class SoapProxyService : ISoapProxyService
                 Content = new StringContent(soapEnvelope, Encoding.UTF8, "text/xml")
             };
             request.Headers.Add("SOAPAction", "\"urn:AC#executeCommand\"");
+            
+            // Add HTTP Basic Auth header
+            var authBytes = Encoding.UTF8.GetBytes($"{stack.SoapUsername}:{stack.SoapPassword}");
+            var authHeader = Convert.ToBase64String(authBytes);
+            request.Headers.Add("Authorization", $"Basic {authHeader}");
 
             var response = await client.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
@@ -78,16 +83,14 @@ public class SoapProxyService : ISoapProxyService
     {
         // Use SecurityElement.Escape to prevent XML injection
         var escapedCommand = SecurityElement.Escape(command);
-        var escapedUsername = SecurityElement.Escape(username);
-        var escapedPassword = SecurityElement.Escape(password);
-
+        
+        // Note: username/password are sent via HTTP Basic Auth header, not in SOAP body
+        // The SOAP envelope only contains the command
         return $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <SOAP-ENV:Envelope xmlns:SOAP-ENV=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:ns1=""urn:AC"">
   <SOAP-ENV:Body>
     <ns1:executeCommand>
       <command>{escapedCommand}</command>
-      <username>{escapedUsername}</username>
-      <password>{escapedPassword}</password>
     </ns1:executeCommand>
   </SOAP-ENV:Body>
 </SOAP-ENV:Envelope>";

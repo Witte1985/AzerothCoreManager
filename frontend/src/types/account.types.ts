@@ -6,6 +6,10 @@ export interface AccountDto {
   lastLogin: string | null
   characterCount: number
   isOnline: boolean
+  isBanned: boolean
+  banExpiry: string | null
+  banReason: string | null
+  bannedBy: string | null
 }
 
 export interface CharacterDto {
@@ -32,17 +36,28 @@ export interface CreateAccountRequest {
 }
 
 export interface SetGmLevelRequest {
-  gmLevel: number
+  username: string
+  level: number
   realmId: number
 }
 
 export interface BanAccountRequest {
+  username: string
   duration: string // "30m" | "1h" | "12h" | "1d" | "7d" | "30d" | "-1" (permanent)
   reason: string
 }
 
 export interface SetPasswordRequest {
-  newPassword: string
+  username: string
+  password: string
+}
+
+export interface DeleteAccountRequest {
+  username: string
+}
+
+export interface UnbanAccountRequest {
+  username: string
 }
 
 export interface UnbanIpRequest {

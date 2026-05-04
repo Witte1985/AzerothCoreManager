@@ -37,11 +37,16 @@ public class AccountManagementService : IAccountManagementService
                 COALESCE(aa.gmlevel, 0) AS GmLevel,
                 a.last_login AS LastLogin,
                 COUNT(DISTINCT c.guid) AS CharacterCount,
-                MAX(c.online) AS IsOnline
+                MAX(c.online) AS IsOnline,
+                COALESCE(ab.active, 0) AS IsBanned,
+                FROM_UNIXTIME(ab.unbandate) AS BanExpiry,
+                ab.banreason AS BanReason,
+                ab.bannedby AS BannedBy
             FROM account a
             LEFT JOIN account_access aa ON a.id = aa.id AND aa.RealmID = -1
             LEFT JOIN acore_characters.characters c ON c.account = a.id
-            GROUP BY a.id, a.username, aa.gmlevel, a.last_login
+            LEFT JOIN account_banned ab ON ab.id = a.id AND ab.active = 1
+            GROUP BY a.id, a.username, aa.gmlevel, a.last_login, ab.active, ab.unbandate, ab.banreason, ab.bannedby
             ORDER BY a.id";
 
         var accounts = await connection.QueryAsync<AccountDto>(sql);
@@ -114,7 +119,7 @@ public class AccountManagementService : IAccountManagementService
             var command = $"account set gmlevel {username} {level} {realmId}";
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
             
-            var success = result.Contains("changed", StringComparison.OrdinalIgnoreCase) ||
+            var success = result.Contains("change", StringComparison.OrdinalIgnoreCase) ||
                          result.Contains("success", StringComparison.OrdinalIgnoreCase);
 
             if (success)

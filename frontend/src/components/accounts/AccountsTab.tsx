@@ -170,6 +170,11 @@ export default function AccountsTab({ stackId }: AccountsTabProps) {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{account.username}</span>
+                            {account.isBanned && (
+                              <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded">
+                                BANNED
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">

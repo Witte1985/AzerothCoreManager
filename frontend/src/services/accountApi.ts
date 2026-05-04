@@ -6,6 +6,8 @@ import type {
   SetGmLevelRequest,
   BanAccountRequest,
   SetPasswordRequest,
+  DeleteAccountRequest,
+  UnbanAccountRequest,
   UnbanIpRequest,
   SendMessageRequest,
   SendItemsRequest,
@@ -44,8 +46,8 @@ export const accountApi = {
     ),
 
   // Delete account
-  delete: (stackId: string, accountId: number) =>
-    apiClient.delete<AccountActionResponse>(`/stacks/${stackId}/accounts/${accountId}`),
+  delete: (stackId: string, accountId: number, request: DeleteAccountRequest) =>
+    apiClient.delete<AccountActionResponse>(`/stacks/${stackId}/accounts/${accountId}`, { data: request }),
 
   // Set password
   setPassword: (stackId: string, accountId: number, request: SetPasswordRequest) =>
@@ -55,8 +57,11 @@ export const accountApi = {
     ),
 
   // Unban account
-  unban: (stackId: string, accountId: number) =>
-    apiClient.post<AccountActionResponse>(`/stacks/${stackId}/accounts/${accountId}/unban`),
+  unban: (stackId: string, accountId: number, request: UnbanAccountRequest) =>
+    apiClient.post<AccountActionResponse>(
+      `/stacks/${stackId}/accounts/${accountId}/unban`,
+      request
+    ),
 
   // Unban IP
   unbanIp: (stackId: string, request: UnbanIpRequest) =>

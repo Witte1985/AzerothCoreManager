@@ -84,7 +84,8 @@ export function useDeleteAccount(stackId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (accountId: number) => accountApi.delete(stackId, accountId),
+    mutationFn: ({ accountId, request }: { accountId: number; request: DeleteAccountRequest }) =>
+      accountApi.delete(stackId, accountId, request),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountKeys.list(stackId) })
     },
@@ -107,7 +108,8 @@ export function useUnbanAccount(stackId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (accountId: number) => accountApi.unban(stackId, accountId),
+    mutationFn: ({ accountId, request }: { accountId: number; request: UnbanAccountRequest }) =>
+      accountApi.unban(stackId, accountId, request),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountKeys.list(stackId) })
     },

@@ -35,24 +35,34 @@ export default function AccountDetailsPanel({ account, stackId, onClose }: Accou
     try {
       await setGmLevelMutation.mutateAsync({
         accountId: account.id,
-        request: { gmLevel, realmId: -1 }
+        request: { username: account.username, level: gmLevel, realmId: -1 }
       })
+      alert(`Successfully set GM level to ${gmLevel} for account ${account.username}`)
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to set GM level')
+      alert(err.response?.data?.error || 'Failed to set GM level')
     }
   }
 
   const handleBan = async (duration: string, reason: string) => {
-    await banAccountMutation.mutateAsync({
-      accountId: account.id,
-      request: { duration, reason }
-    })
+    try {
+      await banAccountMutation.mutateAsync({
+        accountId: account.id,
+        request: { username: account.username, duration, reason }
+      })
+      alert(`Successfully banned account ${account.username} for ${duration}`)
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to ban account')
+    }
   }
 
   const handleUnban = async () => {
     if (confirm(`Unban account ${account.username}?`)) {
       try {
-        await unbanAccountMutation.mutateAsync(account.id)
+        await unbanAccountMutation.mutateAsync({
+          accountId: account.id,
+          request: { username: account.username }
+        })
+        alert(`Successfully unbanned account ${account.username}`)
       } catch (err: any) {
         alert(err.response?.data?.message || 'Failed to unban account')
       }
@@ -60,18 +70,30 @@ export default function AccountDetailsPanel({ account, stackId, onClose }: Accou
   }
 
   const handleSetPassword = async (newPassword: string) => {
-    await setPasswordMutation.mutateAsync({
-      accountId: account.id,
-      request: { newPassword }
-    })
+    try {
+      await setPasswordMutation.mutateAsync({
+        accountId: account.id,
+        request: { username: account.username, password: newPassword }
+      })
+      alert(`Successfully changed password for account ${account.username}`)
+      setActiveDialog(null)
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to change password')
+    }
   }
 
   const handleDelete = async () => {
-    await deleteAccountMutation.mutateAsync(account.id)
-    onClose()
+    try {
+      await deleteAccountMutation.mutateAsync({
+        accountId: account.id,
+        request: { username: account.username }
+      })
+      alert(`Successfully deleted account ${account.username}`)
+      onClose()
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete account')
+    }
   }
-
-  const isBanned = false // Ban info not available yet
 
   return (
     <>
@@ -82,6 +104,11 @@ export default function AccountDetailsPanel({ account, stackId, onClose }: Accou
             {account.isOnline && (
               <span className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full">
                 🟢 Online
+              </span>
+            )}
+            {account.isBanned && (
+              <span className="px-3 py-1 bg-red-100 text-red-700 text-sm font-medium rounded-full">
+                BANNED
               </span>
             )}
           </div>
@@ -108,6 +135,23 @@ export default function AccountDetailsPanel({ account, stackId, onClose }: Accou
               <div className="font-medium">{account.characterCount}</div>
             </div>
           </div>
+
+          {/* Ban Info */}
+          {account.isBanned && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <h4 className="font-semibold text-sm text-red-700 mb-2">Ban Information</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="text-red-600">Reason:</div>
+                <div className="font-medium text-red-800">{account.banReason || 'N/A'}</div>
+                <div className="text-red-600">Banned by:</div>
+                <div className="font-medium text-red-800">{account.bannedBy || 'Unknown'}</div>
+                <div className="text-red-600">Expires:</div>
+                <div className="font-medium text-red-800">
+                  {account.banExpiry ? new Date(account.banExpiry).toLocaleString() : 'Permanent'}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* GM Level Control */}
           <div>
@@ -140,7 +184,7 @@ export default function AccountDetailsPanel({ account, stackId, onClose }: Accou
           <div>
             <h4 className="font-semibold text-sm text-gray-700 mb-2">Account Actions</h4>
             <div className="grid grid-cols-2 gap-2">
-              {isBanned ? (
+              {account.isBanned ? (
                 <button
                   onClick={handleUnban}
                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center justify-center gap-2"

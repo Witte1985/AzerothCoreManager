@@ -34,6 +34,26 @@ public class AccountDto
     /// Whether any character on this account is currently online
     /// </summary>
     public bool IsOnline { get; set; }
+    
+    /// <summary>
+    /// Whether the account is currently banned
+    /// </summary>
+    public bool IsBanned { get; set; }
+    
+    /// <summary>
+    /// Ban expiry date (null if permanent or not banned)
+    /// </summary>
+    public DateTime? BanExpiry { get; set; }
+    
+    /// <summary>
+    /// Reason for the ban
+    /// </summary>
+    public string? BanReason { get; set; }
+    
+    /// <summary>
+    /// Who banned the account
+    /// </summary>
+    public string? BannedBy { get; set; }
 }
 
 /// <summary>
