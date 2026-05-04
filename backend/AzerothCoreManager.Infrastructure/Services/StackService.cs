@@ -387,6 +387,25 @@ public sealed class StackService : IStackService
             ? new List<ModuleVersionStatusDto>()
             : Deserialize<List<ModuleVersionStatusDto>>(stack.OutdatedModulesJson) ?? new List<ModuleVersionStatusDto>();
 
+        // Get cached CI build status if available
+        CiBuildStatusDto? ciBuildStatus = null;
+        if (!string.IsNullOrEmpty(stack.LatestCoreBuildStatus))
+        {
+            var cachedChecks = string.IsNullOrEmpty(stack.LatestCoreBuildChecksJson)
+                ? new List<CiCheckDto>()
+                : Deserialize<List<CiCheckDto>>(stack.LatestCoreBuildChecksJson) ?? new List<CiCheckDto>();
+            
+            ciBuildStatus = new CiBuildStatusDto
+            {
+                Status = stack.LatestCoreBuildStatus,
+                CriticalChecks = cachedChecks,
+                CheckedAt = stack.LatestCoreBuildStatusCheckedAt ?? DateTime.UtcNow,
+                TotalChecks = cachedChecks.Count,
+                PassedChecks = cachedChecks.Count(c => c.Conclusion == "success"),
+                FailedChecks = cachedChecks.Count(c => c.Conclusion == "failure" || c.Conclusion == "timed_out" || c.Conclusion == "action_required")
+            };
+        }
+
         var updateStatus = new StackUpdateStatusDto
         {
             StackId = stack.Id,
@@ -396,7 +415,8 @@ public sealed class StackService : IStackService
             CurrentCoreSha = stack.CoreCommitSha,
             LatestCoreSha = stack.LatestAvailableCoreSha,
             OutdatedModules = outdatedModules,
-            LastCheckedAt = stack.LastUpdateCheckAt
+            LastCheckedAt = stack.LastUpdateCheckAt,
+            LatestCoreBuildStatus = ciBuildStatus
         };
 
         // Get containers and determine actual runtime status
