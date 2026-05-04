@@ -12,7 +12,10 @@ export function CiBuildStatusBadge({
   showDetails = false, 
   className = '' 
 }: CiBuildStatusBadgeProps) {
+  console.log('[CiBuildStatusBadge] status:', status)
+  
   if (!status) {
+    console.log('[CiBuildStatusBadge] No status, returning null')
     return null
   }
 

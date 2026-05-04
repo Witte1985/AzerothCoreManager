@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Play, Square, RefreshCw, Plus, Loader2, Trash2, Hammer, AlertCircle } from 'lucide-react'
+import { Play, Square, RefreshCw, Plus, Loader2, Trash2, Hammer, AlertCircle, Download } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import DeleteStackDialog from '@/components/DeleteStackDialog'
+import { ImportStacksDialog } from '@/components/ImportStacksDialog'
 import { useStacks } from '@/hooks/useStacks'
 import { stackApi, buildApi } from '@/services/api'
 import type { StackDetailsDto } from '@/types/stack.types'
@@ -60,6 +61,7 @@ export default function StackListPage() {
   const { data: stacks = [], isLoading } = useStacks()
   const queryClient = useQueryClient()
   const [deletingStack, setDeletingStack] = useState<{ id: string; name: string } | null>(null)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   const startStack = useMutation({
     mutationFn: (stackId: string) => stackApi.start(stackId),
@@ -114,26 +116,44 @@ export default function StackListPage() {
           <h1 className="text-3xl font-bold text-gray-900">Your Stacks</h1>
           <p className="mt-1 text-gray-500">Manage your AzerothCore server instances</p>
         </div>
-        <Link
-          to="/stacks/new"
-          className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4" />
-          Create Stack
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setImportDialogOpen(true)}
+            className="flex items-center gap-2 rounded-md bg-white border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Download className="h-4 w-4" />
+            Import Existing Stacks
+          </button>
+          <Link
+            to="/stacks/new"
+            className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4" />
+            Create Stack
+          </Link>
+        </div>
       </div>
 
       {stacks.length === 0 ? (
         <div className="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
           <h3 className="text-lg font-medium text-gray-900">No stacks yet</h3>
-          <p className="mt-2 text-gray-500">Get started by creating your first AzerothCore server stack.</p>
-          <Link
-            to="/stacks/new"
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            Create Stack
-          </Link>
+          <p className="mt-2 text-gray-500">Get started by creating your first AzerothCore server stack or import an existing one.</p>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <button
+              onClick={() => setImportDialogOpen(true)}
+              className="inline-flex items-center gap-2 rounded-md bg-white border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Download className="h-4 w-4" />
+              Import Existing Stacks
+            </button>
+            <Link
+              to="/stacks/new"
+              className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              Create Stack
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
@@ -266,6 +286,15 @@ export default function StackListPage() {
           isDeleting={deleteStack.isPending}
         />
       )}
+      
+      {/* Import Stacks Dialog */}
+      <ImportStacksDialog
+        isOpen={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImportSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['stacks'] })
+        }}
+      />
     </div>
   )
 }

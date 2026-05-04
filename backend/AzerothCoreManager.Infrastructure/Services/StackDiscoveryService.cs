@@ -1,0 +1,307 @@
+using System.Diagnostics;
+using System.Text.RegularExpressions;
+using AzerothCoreManager.Core.Contracts;
+using AzerothCoreManager.Core.Services.Interfaces;
+using AzerothCoreManager.Infrastructure.Configuration;
+using Docker.DotNet;
+using Docker.DotNet.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace AzerothCoreManager.Infrastructure.Services;
+
+/// <summary>
+/// Service for discovering existing AzerothCore stacks from filesystem and Docker
+/// </summary>
+public class StackDiscoveryService : IStackDiscoveryService
+{
+    private readonly IDockerClient _dockerClient;
+    private readonly ILogger<StackDiscoveryService> _logger;
+    private readonly string _stacksPath;
+
+    public StackDiscoveryService(
+        IDockerClient dockerClient,
+        ILogger<StackDiscoveryService> logger,
+        IOptions<DockerOptions> dockerOptions)
+    {
+        _dockerClient = dockerClient;
+        _logger = logger;
+        _stacksPath = dockerOptions.Value.BuildsPath;
+    }
+
+    public async Task<IReadOnlyList<DiscoveredStackDto>> DiscoverStacksAsync(CancellationToken ct = default)
+    {
+        _logger.LogInformation("Starting stack discovery scan in {StacksPath}", _stacksPath);
+        
+        if (!Directory.Exists(_stacksPath))
+        {
+            _logger.LogWarning("Stacks directory does not exist: {StacksPath}", _stacksPath);
+            return Array.Empty<DiscoveredStackDto>();
+        }
+
+        var stackDirectories = Directory.GetDirectories(_stacksPath)
+            .Select(Path.GetFileName)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .ToList();
+
+        _logger.LogInformation("Found {Count} potential stack directories", stackDirectories.Count);
+
+        var discovered = new List<DiscoveredStackDto>();
+
+        foreach (var stackId in stackDirectories)
+        {
+            try
+            {
+                var stack = await DiscoverStackByIdAsync(stackId!, ct);
+                if (stack != null)
+                {
+                    discovered.Add(stack);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error discovering stack {StackId}", stackId);
+            }
+        }
+
+        _logger.LogInformation("Discovered {Count} importable stacks", discovered.Count);
+        return discovered;
+    }
+
+    public async Task<DiscoveredStackDto?> DiscoverStackByIdAsync(string stackId, CancellationToken ct = default)
+    {
+        _logger.LogDebug("Discovering stack {StackId}", stackId);
+
+        var stackPath = Path.Combine(_stacksPath, stackId);
+        if (!Directory.Exists(stackPath))
+        {
+            _logger.LogWarning("Stack directory not found: {StackPath}", stackPath);
+            return null;
+        }
+
+        // Check if Docker containers exist for this stack
+        var projectName = $"acore-{stackId}";
+        var containers = await GetContainersForProjectAsync(projectName, ct);
+
+        if (containers.Count == 0)
+        {
+            _logger.LogWarning("No containers found for stack {StackId} (project: {ProjectName})", stackId, projectName);
+            return new DiscoveredStackDto
+            {
+                StackId = stackId,
+                SuggestedName = $"Imported Stack {stackId.Substring(0, Math.Min(8, stackId.Length))}",
+                IsOrphaned = true,
+                DiscoveredAt = DateTime.UtcNow
+            };
+        }
+
+        // Extract configuration from containers
+        var ports = await ExtractPortMappingsAsync(containers, ct);
+        var status = CalculateStackStatus(containers);
+        
+        // Query git repository for version info
+        var gitInfo = await QueryGitRepositoryAsync(stackPath, ct);
+
+        var discovered = new DiscoveredStackDto
+        {
+            StackId = stackId,
+            SuggestedName = $"Imported Stack {stackId.Substring(0, Math.Min(8, stackId.Length))}",
+            InferredServerType = InferServerType(gitInfo.RepositoryUrl),
+            CurrentStatus = status,
+            DatabasePort = ports.DatabasePort,
+            AuthServerPort = ports.AuthServerPort,
+            WorldServerPort = ports.WorldServerPort,
+            SoapPort = ports.SoapPort,
+            IsOrphaned = false,
+            ContainerNames = containers.Select(c => c.Names.FirstOrDefault()?.TrimStart('/') ?? c.ID).ToList(),
+            CoreRepositoryUrl = gitInfo.RepositoryUrl,
+            CoreBranch = gitInfo.Branch,
+            CoreCommitSha = gitInfo.CommitSha,
+            DiscoveredAt = DateTime.UtcNow
+        };
+
+        _logger.LogInformation(
+            "Discovered stack {StackId}: Type={Type}, Status={Status}, Containers={ContainerCount}",
+            stackId, discovered.InferredServerType, discovered.CurrentStatus, discovered.ContainerNames.Count);
+
+        return discovered;
+    }
+
+    private async Task<List<ContainerListResponse>> GetContainersForProjectAsync(string projectName, CancellationToken ct)
+    {
+        var parameters = new ContainersListParameters
+        {
+            All = true,
+            Filters = new Dictionary<string, IDictionary<string, bool>>
+            {
+                ["label"] = new Dictionary<string, bool>
+                {
+                    [$"com.docker.compose.project={projectName}"] = true
+                }
+            }
+        };
+
+        var containers = await _dockerClient.Containers.ListContainersAsync(parameters, ct);
+        return containers.ToList();
+    }
+
+    private async Task<(int DatabasePort, int AuthServerPort, int WorldServerPort, int SoapPort)> ExtractPortMappingsAsync(
+        List<ContainerListResponse> containers, CancellationToken ct)
+    {
+        int dbPort = 0, authPort = 0, worldPort = 0, soapPort = 0;
+
+        foreach (var container in containers)
+        {
+            var serviceName = container.Labels.TryGetValue("com.docker.compose.service", out var service) 
+                ? service 
+                : "";
+
+            // Database container
+            if (serviceName == "ac-database")
+            {
+                dbPort = GetHostPort(container.Ports, 3306);
+            }
+            // Auth server container
+            else if (serviceName == "ac-authserver")
+            {
+                authPort = GetHostPort(container.Ports, 3724);
+            }
+            // World server container
+            else if (serviceName == "ac-worldserver")
+            {
+                worldPort = GetHostPort(container.Ports, 8085);
+                if (soapPort == 0)
+                {
+                    soapPort = GetHostPort(container.Ports, 7878);
+                }
+            }
+        }
+
+        _logger.LogDebug(
+            "Extracted ports: DB={DatabasePort}, Auth={AuthPort}, World={WorldPort}, SOAP={SoapPort}",
+            dbPort, authPort, worldPort, soapPort);
+
+        return (dbPort, authPort, worldPort, soapPort);
+    }
+
+    private static int GetHostPort(IList<Port> ports, int containerPort)
+    {
+        var port = ports.FirstOrDefault(p => p.PrivatePort == containerPort && p.PublicPort > 0);
+        return (int)(port?.PublicPort ?? 0);
+    }
+
+    private static StackStatus CalculateStackStatus(List<ContainerListResponse> containers)
+    {
+        // Critical containers for a functional stack
+        var criticalServices = new[] { "ac-database", "ac-authserver", "ac-worldserver" };
+        
+        var criticalContainers = containers
+            .Where(c => {
+                var hasService = c.Labels.TryGetValue("com.docker.compose.service", out var service);
+                return hasService && criticalServices.Contains(service);
+            })
+            .ToList();
+
+        if (criticalContainers.Count == 0)
+        {
+            return StackStatus.Stopped;
+        }
+
+        var runningCount = criticalContainers.Count(c => c.State == "running");
+        var totalCritical = criticalContainers.Count;
+
+        if (runningCount == 0)
+        {
+            return StackStatus.Stopped;
+        }
+        else if (runningCount < totalCritical)
+        {
+            return StackStatus.Degraded;
+        }
+        else
+        {
+            // All critical containers running, check health
+            var unhealthyCount = criticalContainers.Count(c => 
+                c.Status.Contains("unhealthy", StringComparison.OrdinalIgnoreCase));
+            
+            return unhealthyCount > 0 ? StackStatus.Degraded : StackStatus.Running;
+        }
+    }
+
+    private async Task<(string? RepositoryUrl, string? Branch, string? CommitSha)> QueryGitRepositoryAsync(
+        string stackPath, CancellationToken ct)
+    {
+        var repoPath = Path.Combine(stackPath, "azerothcore-wotlk");
+        if (!Directory.Exists(Path.Combine(repoPath, ".git")))
+        {
+            _logger.LogWarning("Git repository not found at {RepoPath}", repoPath);
+            return (null, null, null);
+        }
+
+        try
+        {
+            var remoteUrl = await RunGitCommandAsync(repoPath, "remote get-url origin", ct);
+            var branch = await RunGitCommandAsync(repoPath, "rev-parse --abbrev-ref HEAD", ct);
+            var commitSha = await RunGitCommandAsync(repoPath, "rev-parse HEAD", ct);
+
+            _logger.LogDebug(
+                "Git info: Remote={RemoteUrl}, Branch={Branch}, Commit={CommitSha}",
+                remoteUrl, branch, commitSha);
+
+            return (remoteUrl, branch, commitSha);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error querying git repository at {RepoPath}", repoPath);
+            return (null, null, null);
+        }
+    }
+
+    private async Task<string?> RunGitCommandAsync(string workingDirectory, string arguments, CancellationToken ct)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "git",
+            Arguments = arguments,
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = Process.Start(startInfo);
+        if (process == null)
+        {
+            throw new InvalidOperationException("Failed to start git process");
+        }
+
+        var output = await process.StandardOutput.ReadToEndAsync(ct);
+        await process.WaitForExitAsync(ct);
+
+        if (process.ExitCode != 0)
+        {
+            var error = await process.StandardError.ReadToEndAsync(ct);
+            _logger.LogWarning("Git command failed: {Arguments}, Error: {Error}", arguments, error);
+            return null;
+        }
+
+        return output.Trim();
+    }
+
+    private static ServerType InferServerType(string? repositoryUrl)
+    {
+        if (string.IsNullOrEmpty(repositoryUrl))
+        {
+            return ServerType.Standard;
+        }
+
+        // Check if URL contains mod-playerbots
+        if (repositoryUrl.Contains("mod-playerbots", StringComparison.OrdinalIgnoreCase))
+        {
+            return ServerType.Playerbots;
+        }
+
+        return ServerType.Standard;
+    }
+}

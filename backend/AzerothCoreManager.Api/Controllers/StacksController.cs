@@ -1,4 +1,5 @@
 using AzerothCoreManager.Core.Contracts;
+using AzerothCoreManager.Core.Exceptions;
 using AzerothCoreManager.Core.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,15 +15,18 @@ public class StacksController : ControllerBase
     private readonly IBuildService _buildService;
     private readonly IStackService _stackService;
     private readonly IStackConfigurationValidator _stackConfigurationValidator;
+    private readonly IStackDiscoveryService _stackDiscoveryService;
 
     public StacksController(
         IBuildService buildService,
         IStackService stackService,
-        IStackConfigurationValidator stackConfigurationValidator)
+        IStackConfigurationValidator stackConfigurationValidator,
+        IStackDiscoveryService stackDiscoveryService)
     {
         _buildService = buildService;
         _stackService = stackService;
         _stackConfigurationValidator = stackConfigurationValidator;
+        _stackDiscoveryService = stackDiscoveryService;
     }
 
     [HttpGet]
@@ -230,5 +234,59 @@ public class StacksController : ControllerBase
         // Trigger rebuild with existing configuration (configuration: null)
         var buildStatus = await _buildService.StartAsync(stackId, configuration: null, cancellationToken);
         return Ok(buildStatus);
+    }
+
+    /// <summary>
+    /// Discover existing stacks from filesystem and Docker that are not tracked in the database
+    /// </summary>
+    [HttpGet("discover")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IReadOnlyList<DiscoveredStackDto>))]
+    public async Task<ActionResult<IReadOnlyList<DiscoveredStackDto>>> DiscoverStacks(
+        CancellationToken cancellationToken)
+    {
+        var discovered = await _stackDiscoveryService.DiscoverStacksAsync(cancellationToken);
+        
+        // Filter out stacks already in database
+        var existingIds = await _stackService.ListAsync(cancellationToken)
+            .ContinueWith(t => t.Result.Select(s => s.StackId).ToHashSet(), cancellationToken);
+        
+        var newStacks = discovered
+            .Where(d => !existingIds.Contains(d.StackId))
+            .ToList();
+        
+        return Ok(newStacks);
+    }
+
+    /// <summary>
+    /// Import a discovered stack into the manager database
+    /// </summary>
+    [HttpPost("import/{stackId}")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(StackDetailsDto))]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<StackDetailsDto>> ImportStack(
+        string stackId,
+        [FromBody] ImportStackRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        try
+        {
+            var imported = await _stackService.ImportDiscoveredStackAsync(stackId, request, cancellationToken);
+            return Ok(imported);
+        }
+        catch (StackNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (StackConflictException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
     }
 }

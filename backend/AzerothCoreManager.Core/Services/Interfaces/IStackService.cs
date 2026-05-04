@@ -22,4 +22,18 @@ public interface IStackService
     Task<bool> StopAsync(string stackId, CancellationToken cancellationToken = default);
 
     Task<bool> RestartAsync(string stackId, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Import a discovered stack into the manager database
+    /// </summary>
+    /// <param name="stackId">Stack identifier from discovery</param>
+    /// <param name="request">Import configuration (name, passwords)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Imported stack details</returns>
+    /// <exception cref="StackNotFoundException">Stack not found or orphaned</exception>
+    /// <exception cref="StackConflictException">Stack ID or ports conflict with existing stacks</exception>
+    Task<StackDetailsDto> ImportDiscoveredStackAsync(
+        string stackId, 
+        ImportStackRequestDto request, 
+        CancellationToken cancellationToken = default);
 }

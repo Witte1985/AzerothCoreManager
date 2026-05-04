@@ -7,6 +7,8 @@ import type {
   ValidationResultDto,
   ServerType,
   StackUpdateStatusDto,
+  DiscoveredStackDto,
+  ImportStackRequestDto,
 } from '@/types/stack.types'
 import type { ModuleConfigSchema } from '@/types/moduleConfig'
 
@@ -57,6 +59,12 @@ export const stackApi = {
     apiClient.post<StackUpdateStatusDto>(`/stacks/${stackId}/check-updates`),
   update: (stackId: string) => 
     apiClient.post<BuildStatusDto>(`/stacks/${stackId}/update`),
+  
+  // Import operations
+  discover: () => 
+    apiClient.get<DiscoveredStackDto[]>('/stacks/discover'),
+  import: (stackId: string, request: ImportStackRequestDto) =>
+    apiClient.post<StackDetailsDto>(`/stacks/import/${stackId}`, request),
 }
 
 // Build API

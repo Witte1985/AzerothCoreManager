@@ -50,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<IStackConfigurationValidator, StackConfigurationValidator>();
         services.AddScoped<IStackService, StackService>();
         services.AddScoped<IStackVersionService, StackVersionService>();
+        services.AddScoped<IStackDiscoveryService, StackDiscoveryService>();
         services.AddScoped<IGitHubApiService, GitHubApiService>();
 
         // Register module configuration parsers

@@ -2,14 +2,17 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using AzerothCoreManager.Core.Contracts;
+using AzerothCoreManager.Core.Exceptions;
 using AzerothCoreManager.Core.Services.Interfaces;
 using AzerothCoreManager.Infrastructure.Configuration;
 using AzerothCoreManager.Infrastructure.Data;
 using AzerothCoreManager.Infrastructure.Data.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AzerothCoreManager.Infrastructure.Services;
@@ -25,12 +28,21 @@ public sealed class StackService : IStackService
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly AzerothCoreDbContext _dbContext;
     private readonly IDockerService _dockerService;
+    private readonly IStackDiscoveryService _stackDiscoveryService;
+    private readonly ILogger<StackService> _logger;
     private readonly DockerOptions _dockerOptions;
 
-    public StackService(AzerothCoreDbContext dbContext, IDockerService dockerService, IOptions<DockerOptions> dockerOptions)
+    public StackService(
+        AzerothCoreDbContext dbContext, 
+        IDockerService dockerService,
+        IStackDiscoveryService stackDiscoveryService,
+        ILogger<StackService> logger,
+        IOptions<DockerOptions> dockerOptions)
     {
         _dbContext = dbContext;
         _dockerService = dockerService;
+        _stackDiscoveryService = stackDiscoveryService;
+        _logger = logger;
         _dockerOptions = dockerOptions.Value;
     }
 
@@ -824,5 +836,147 @@ public sealed class StackService : IStackService
         {
             // Prune might fail, continue anyway
         }
+    }
+
+    // ===== Stack Import Methods =====
+    
+    /// <summary>
+    /// Import a discovered stack into the manager database
+    /// </summary>
+    public async Task<StackDetailsDto> ImportDiscoveredStackAsync(
+        string stackId, 
+        ImportStackRequestDto request, 
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Starting import of stack {StackId} with name {StackName}", stackId, request.StackName);
+
+        // 1. Discover the stack
+        var discovered = await _stackDiscoveryService.DiscoverStackByIdAsync(stackId, cancellationToken);
+        if (discovered == null || discovered.IsOrphaned)
+        {
+            throw new StackNotFoundException(stackId);
+        }
+
+        // 2. Validate no conflicts
+        await ValidateImportAsync(stackId, discovered, cancellationToken);
+
+        // 3. Create entity
+        var entity = CreateEntityFromDiscovery(stackId, discovered, request);
+
+        // 4. Save to database
+        _dbContext.ManagedStacks.Add(entity);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Successfully imported stack {StackId} as {StackName}", 
+            stackId, request.StackName);
+
+        // 5. Return DTO
+        return await MapAsync(entity, cancellationToken);
+    }
+
+    private async Task ValidateImportAsync(
+        string stackId, 
+        DiscoveredStackDto discovered, 
+        CancellationToken cancellationToken)
+    {
+        // Check if stack ID already exists
+        var existingStack = await _dbContext.ManagedStacks
+            .FirstOrDefaultAsync(s => s.Id == stackId, cancellationToken);
+        
+        if (existingStack != null)
+        {
+            throw new StackConflictException($"Stack with ID '{stackId}' already exists in the database");
+        }
+
+        // Check for port conflicts
+        var allStacks = await _dbContext.ManagedStacks.ToListAsync(cancellationToken);
+        
+        foreach (var stack in allStacks)
+        {
+            if (stack.DatabasePort == discovered.DatabasePort)
+            {
+                throw new StackConflictException(
+                    $"Database port {discovered.DatabasePort} is already in use by stack '{stack.StackName}'");
+            }
+            if (stack.AuthServerPort == discovered.AuthServerPort)
+            {
+                throw new StackConflictException(
+                    $"Auth server port {discovered.AuthServerPort} is already in use by stack '{stack.StackName}'");
+            }
+            if (stack.WorldServerPort == discovered.WorldServerPort)
+            {
+                throw new StackConflictException(
+                    $"World server port {discovered.WorldServerPort} is already in use by stack '{stack.StackName}'");
+            }
+            if (stack.SoapPort == discovered.SoapPort)
+            {
+                throw new StackConflictException(
+                    $"SOAP port {discovered.SoapPort} is already in use by stack '{stack.StackName}'");
+            }
+        }
+    }
+
+    private ManagedStackEntity CreateEntityFromDiscovery(
+        string stackId,
+        DiscoveredStackDto discovered,
+        ImportStackRequestDto request)
+    {
+        var now = DateTime.UtcNow;
+
+        return new ManagedStackEntity
+        {
+            Id = stackId,
+            StackName = request.StackName,
+            NormalizedStackName = request.StackName.ToUpperInvariant(),
+            ServerType = discovered.InferredServerType,
+            Status = discovered.CurrentStatus,
+            
+            // Ports from discovery
+            DatabasePort = discovered.DatabasePort,
+            AuthServerPort = discovered.AuthServerPort,
+            WorldServerPort = discovered.WorldServerPort,
+            SoapPort = discovered.SoapPort,
+            
+            // Passwords - use provided or generate secure ones
+            DatabaseRootPassword = request.DatabaseRootPassword ?? GenerateSecurePassword(),
+            SoapUsername = request.SoapUsername ?? "admin",
+            SoapPassword = request.SoapPassword ?? "admin",
+            
+            // Defaults
+            MaxPlayers = 100,
+            RealmName = "AzerothCore",
+            ModuleIdsJson = "[]",
+            CustomEnvVarsJson = "{}",
+            
+            // Version info from git
+            CoreRepositoryUrl = discovered.CoreRepositoryUrl ?? string.Empty,
+            CoreBranch = discovered.CoreBranch ?? "master",
+            CoreCommitSha = discovered.CoreCommitSha ?? string.Empty,
+            
+            // Timestamps
+            CreatedAt = now,
+            LastBuiltAt = null, // Unknown when it was actually built
+            
+            // Will be populated on next update check
+            IsOutdated = false,
+            IsCoreOutdated = false,
+            OutdatedModuleCount = 0,
+            ModuleVersionsJson = "[]",
+            OutdatedModulesJson = "[]"
+        };
+    }
+
+    private static string GenerateSecurePassword(int length = 32)
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+        var password = new char[length];
+        
+        for (int i = 0; i < length; i++)
+        {
+            password[i] = chars[RandomNumberGenerator.GetInt32(chars.Length)];
+        }
+        
+        return new string(password);
     }
 }

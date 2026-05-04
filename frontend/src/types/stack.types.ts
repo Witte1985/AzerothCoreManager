@@ -77,6 +77,30 @@ export interface ModuleVersionStatusDto {
   latestCommitSha?: string
 }
 
+export interface DiscoveredStackDto {
+  stackId: string
+  suggestedName: string
+  inferredServerType: ServerType
+  currentStatus: StackStatus
+  databasePort: number
+  authServerPort: number
+  worldServerPort: number
+  soapPort: number
+  isOrphaned: boolean
+  containerNames: string[]
+  coreRepositoryUrl?: string
+  coreBranch?: string
+  coreCommitSha?: string
+  discoveredAt: string
+}
+
+export interface ImportStackRequestDto {
+  stackName: string
+  databaseRootPassword?: string
+  soapUsername?: string
+  soapPassword?: string
+}
+
 export interface CiCheckDto {
   name: string
   status: string
