@@ -20,13 +20,15 @@ public class StackDiscoveryService : IStackDiscoveryService
     private readonly string _stacksPath;
 
     public StackDiscoveryService(
-        IDockerClient dockerClient,
         ILogger<StackDiscoveryService> logger,
         IOptions<DockerOptions> dockerOptions)
     {
-        _dockerClient = dockerClient;
         _logger = logger;
         _stacksPath = dockerOptions.Value.BuildsPath;
+        
+        // Create Docker client like DockerService does
+        var config = new DockerClientConfiguration(new Uri("unix:///var/run/docker.sock"));
+        _dockerClient = config.CreateClient();
     }
 
     public async Task<IReadOnlyList<DiscoveredStackDto>> DiscoverStacksAsync(CancellationToken ct = default)
