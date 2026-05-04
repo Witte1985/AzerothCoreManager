@@ -36,4 +36,14 @@ public interface IStackService
         string stackId, 
         ImportStackRequestDto request, 
         CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Initialize SOAP admin account for a stack by creating the account in the worldserver database
+    /// </summary>
+    /// <param name="stackId">Stack identifier</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if account was created successfully, false if already initialized</returns>
+    /// <exception cref="StackNotFoundException">Stack not found</exception>
+    /// <exception cref="InvalidOperationException">Stack is not running or worldserver not accessible</exception>
+    Task<bool> InitializeAdminAccountAsync(string stackId, CancellationToken cancellationToken = default);
 }

@@ -164,6 +164,22 @@ export default function StackDetailsPage() {
     },
   })
 
+  const initializeAdminMutation = useMutation({
+    mutationFn: () => stackApi.initializeAdmin(stackId!),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: stackKeys.detail(stackId!) })
+      if (data.data.created) {
+        alert('Admin account created successfully!')
+      } else {
+        alert('Admin account was already initialized')
+      }
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.error || 'Failed to initialize admin account'
+      alert(`Error: ${message}`)
+    },
+  })
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -231,6 +247,7 @@ export default function StackDetailsPage() {
   const canStart = stack.status === StackStatus.Stopped || stack.status === StackStatus.Failed
   const canStop = stack.status === StackStatus.Running || stack.status === StackStatus.Starting || stack.status === StackStatus.Degraded || stack.status === StackStatus.Initializing
   const canRestart = stack.status === StackStatus.Running || stack.status === StackStatus.Degraded
+  const canInitializeAdmin = stack.status === StackStatus.Running && !stack.isAdminAccountInitialized
   const isTransitioning = startMutation.isPending || stopMutation.isPending || restartMutation.isPending
 
   return (
@@ -290,6 +307,25 @@ export default function StackDetailsPage() {
           >
             {restartMutation.isPending ? 'Restarting...' : 'Restart'}
           </button>
+          
+          {/* Initialize Admin Account button */}
+          {canInitializeAdmin && (
+            <button
+              onClick={() => initializeAdminMutation.mutate()}
+              disabled={initializeAdminMutation.isPending}
+              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              title="Create SOAP admin account for account management"
+            >
+              {initializeAdminMutation.isPending ? 'Initializing...' : 'Initialize SOAP Admin'}
+            </button>
+          )}
+          
+          {stack.isAdminAccountInitialized && (
+            <span className="px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded text-sm font-medium" title={`Initialized: ${stack.adminAccountInitializedAt ? new Date(stack.adminAccountInitializedAt).toLocaleString() : 'unknown'}`}>
+              ✓ SOAP Admin Ready
+            </span>
+          )}
+          
           <div className="flex-1"></div>
           <button
             onClick={() => checkUpdatesMutation.mutate()}

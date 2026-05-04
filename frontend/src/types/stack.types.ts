@@ -143,6 +143,8 @@ export interface StackDetailsDto {
   configuration: StackConfigurationDto
   createdAt: string
   updateStatus?: StackUpdateStatusDto
+  isAdminAccountInitialized: boolean
+  adminAccountInitializedAt?: string
 }
 
 export interface StackListDto {

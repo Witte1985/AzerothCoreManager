@@ -80,4 +80,15 @@ public class ManagedStackEntity
     /// When the CI build status was last checked
     /// </summary>
     public DateTime? LatestCoreBuildStatusCheckedAt { get; set; }
+    
+    // ===== SOAP Admin Account =====
+    /// <summary>
+    /// Whether the SOAP admin account has been initialized in the database
+    /// </summary>
+    public bool IsAdminAccountInitialized { get; set; }
+    
+    /// <summary>
+    /// When the admin account was initialized
+    /// </summary>
+    public DateTime? AdminAccountInitializedAt { get; set; }
 }

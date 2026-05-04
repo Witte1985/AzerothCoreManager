@@ -289,4 +289,30 @@ public class StacksController : ControllerBase
             return Conflict(new { error = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Initialize SOAP admin account for a stack
+    /// </summary>
+    [HttpPost("{stackId}/initialize-admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> InitializeAdminAccount(
+        string stackId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var created = await _stackService.InitializeAdminAccountAsync(stackId, cancellationToken);
+            return Ok(new { success = true, created, message = created ? "Admin account created successfully" : "Admin account already initialized" });
+        }
+        catch (StackNotFoundException ex)
+        {
+            return NotFound(new { success = false, error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, error = ex.Message });
+        }
+    }
 }

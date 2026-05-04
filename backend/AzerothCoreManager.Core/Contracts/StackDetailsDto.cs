@@ -44,4 +44,14 @@ public class StackDetailsDto
     /// Update status for this stack (if available)
     /// </summary>
     public StackUpdateStatusDto? UpdateStatus { get; set; }
+    
+    /// <summary>
+    /// Whether the SOAP admin account has been initialized
+    /// </summary>
+    public bool IsAdminAccountInitialized { get; set; }
+    
+    /// <summary>
+    /// When the admin account was initialized
+    /// </summary>
+    public DateTime? AdminAccountInitializedAt { get; set; }
 }

@@ -65,6 +65,10 @@ export const stackApi = {
     apiClient.get<DiscoveredStackDto[]>('/stacks/discover'),
   import: (stackId: string, request: ImportStackRequestDto) =>
     apiClient.post<StackDetailsDto>(`/stacks/import/${stackId}`, request),
+  
+  // Admin account initialization
+  initializeAdmin: (stackId: string) =>
+    apiClient.post<{ success: boolean; created: boolean; message: string }>(`/stacks/${stackId}/initialize-admin`),
 }
 
 // Build API

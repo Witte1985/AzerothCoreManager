@@ -463,10 +463,14 @@ public sealed class StackService : IStackService
                 {
                     MaxPlayers = stack.MaxPlayers,
                     RealmName = stack.RealmName,
-                    CustomEnvVars = Deserialize<Dictionary<string, string>>(stack.CustomEnvVarsJson) ?? new Dictionary<string, string>()
+                    CustomEnvVars = Deserialize<Dictionary<string, string>>(stack.CustomEnvVarsJson) ?? new Dictionary<string, string>(),
+                    SoapUsername = stack.SoapUsername,
+                    SoapPassword = stack.SoapPassword
                 }
             },
-            UpdateStatus = updateStatus
+            UpdateStatus = updateStatus,
+            IsAdminAccountInitialized = stack.IsAdminAccountInitialized,
+            AdminAccountInitializedAt = stack.AdminAccountInitializedAt
         };
     }
 
@@ -972,6 +976,93 @@ public sealed class StackService : IStackService
             ModuleVersionsJson = "[]",
             OutdatedModulesJson = "[]"
         };
+    }
+
+    public async Task<bool> InitializeAdminAccountAsync(string stackId, CancellationToken cancellationToken = default)
+    {
+        var stack = await _dbContext.ManagedStacks
+            .SingleOrDefaultAsync(s => s.Id == stackId, cancellationToken);
+
+        if (stack is null)
+        {
+            throw new StackNotFoundException($"Stack with ID '{stackId}' not found.");
+        }
+
+        // Check if already initialized
+        if (stack.IsAdminAccountInitialized)
+        {
+            _logger.LogInformation("Admin account for stack {StackId} already initialized", stackId);
+            return false;
+        }
+
+        // Verify stack is running
+        var composeProjectName = GetComposeProjectName(stackId);
+        var stackContainers = await _dockerService.ListContainersAsync(composeProjectName, cancellationToken);
+
+        if (!stackContainers.Any())
+        {
+            throw new InvalidOperationException($"Stack {stackId} has no running containers");
+        }
+
+        var worldserverContainer = stackContainers
+            .FirstOrDefault(c => c.Name.Contains("worldserver", StringComparison.OrdinalIgnoreCase));
+
+        if (worldserverContainer is null)
+        {
+            throw new InvalidOperationException($"Worldserver container not found for stack {stackId}");
+        }
+
+        if (!worldserverContainer.Status.Contains("running", StringComparison.OrdinalIgnoreCase) &&
+            !worldserverContainer.Status.Contains("up", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Worldserver container is not running (status: {worldserverContainer.Status})");
+        }
+
+        // Execute account creation command via docker exec
+        var command = $"account create admin {stack.SoapPassword} 3 -1";
+        
+        _logger.LogInformation("Creating admin account for stack {StackId} via worldserver-cli", stackId);
+        
+        try
+        {
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "docker",
+                    Arguments = $"exec {worldserverContainer.Name} worldserver-cli {command}",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                }
+            };
+
+            process.Start();
+            var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var error = await process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode != 0)
+            {
+                _logger.LogError("Failed to create admin account: {Error}", error);
+                throw new InvalidOperationException($"Failed to create admin account: {error}");
+            }
+
+            _logger.LogInformation("Admin account created successfully for stack {StackId}. Output: {Output}", stackId, output);
+
+            // Mark as initialized
+            stack.IsAdminAccountInitialized = true;
+            stack.AdminAccountInitializedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            return true;
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            _logger.LogError(ex, "Error executing docker exec command for stack {StackId}", stackId);
+            throw new InvalidOperationException($"Failed to execute admin account creation: {ex.Message}", ex);
+        }
     }
 
     private static string GenerateSecurePassword(int length = 32)
