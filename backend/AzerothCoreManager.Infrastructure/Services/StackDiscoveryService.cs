@@ -103,6 +103,15 @@ public class StackDiscoveryService : IStackDiscoveryService
         
         // Query git repository for version info
         var gitInfo = await QueryGitRepositoryAsync(stackPath, ct);
+        
+        // Discover additional data from filesystem
+        var coreRepoPath = Path.Combine(stackPath, "azerothcore-wotlk");
+        var modules = DiscoverModules(coreRepoPath);
+        var envData = ReadEnvFile(coreRepoPath);
+        var customEnvVars = ReadDockerComposeOverride(coreRepoPath);
+        
+        _logger.LogDebug("Stack {StackId}: Modules={ModuleCount}, HasDbPassword={HasPassword}, HasSoapUsername={HasSoapUser}",
+            stackId, modules?.Count ?? 0, !string.IsNullOrEmpty(envData.DatabasePassword), !string.IsNullOrEmpty(envData.SoapUsername));
 
         var discovered = new DiscoveredStackDto
         {
@@ -119,7 +128,12 @@ public class StackDiscoveryService : IStackDiscoveryService
             CoreRepositoryUrl = gitInfo.RepositoryUrl,
             CoreBranch = gitInfo.Branch,
             CoreCommitSha = gitInfo.CommitSha,
-            DiscoveredAt = DateTime.UtcNow
+            DiscoveredAt = DateTime.UtcNow,
+            DiscoveredModules = modules,
+            DiscoveredDatabasePassword = envData.DatabasePassword,
+            DiscoveredSoapUsername = envData.SoapUsername,
+            DiscoveredSoapPassword = envData.SoapPassword,
+            DiscoveredEnvVars = customEnvVars
         };
 
         _logger.LogInformation(
@@ -305,5 +319,127 @@ public class StackDiscoveryService : IStackDiscoveryService
         }
 
         return ServerType.Standard;
+    }
+    
+    /// <summary>
+    /// Discovers installed modules by scanning the modules directory.
+    /// </summary>
+    private List<string>? DiscoverModules(string coreRepoPath)
+    {
+        var modulesPath = Path.Combine(coreRepoPath, "modules");
+        if (!Directory.Exists(modulesPath))
+        {
+            _logger.LogDebug("Modules directory not found at {ModulesPath}", modulesPath);
+            return null;
+        }
+
+        try
+        {
+            var moduleDirectories = Directory.GetDirectories(modulesPath)
+                .Select(Path.GetFileName)
+                .Where(name => !string.IsNullOrEmpty(name) && name!.StartsWith("mod-", StringComparison.OrdinalIgnoreCase))
+                .Cast<string>()
+                .ToList();
+
+            if (moduleDirectories.Count > 0)
+            {
+                _logger.LogDebug("Discovered {ModuleCount} modules: {Modules}", 
+                    moduleDirectories.Count, string.Join(", ", moduleDirectories));
+                return moduleDirectories;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to discover modules from {ModulesPath}", modulesPath);
+        }
+
+        return null;
+    }
+    
+    /// <summary>
+    /// Reads the .env file to recover passwords and configuration.
+    /// </summary>
+    private (string? DatabasePassword, string? SoapUsername, string? SoapPassword) ReadEnvFile(string coreRepoPath)
+    {
+        var envPath = Path.Combine(coreRepoPath, ".env");
+        if (!File.Exists(envPath))
+        {
+            _logger.LogDebug(".env file not found at {EnvPath}", envPath);
+            return (null, null, null);
+        }
+
+        try
+        {
+            var envLines = File.ReadAllLines(envPath);
+            string? dbPassword = null;
+            string? soapUsername = null;
+            string? soapPassword = null;
+
+            foreach (var line in envLines)
+            {
+                if (line.StartsWith("#") || string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                var parts = line.Split('=', 2);
+                if (parts.Length != 2)
+                    continue;
+
+                var key = parts[0].Trim();
+                var value = parts[1].Trim().Trim('"');
+
+                switch (key)
+                {
+                    case "DOCKER_DB_ROOT_PASSWORD":
+                        dbPassword = value;
+                        break;
+                    case "SOAP_USERNAME":
+                        soapUsername = value;
+                        break;
+                    case "SOAP_PASSWORD":
+                        soapPassword = value;
+                        break;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(dbPassword))
+            {
+                _logger.LogDebug("Recovered database password from .env file");
+            }
+
+            return (dbPassword, soapUsername, soapPassword);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to read .env file from {EnvPath}", envPath);
+            return (null, null, null);
+        }
+    }
+    
+    /// <summary>
+    /// Reads custom environment variables from docker-compose.override.yml.
+    /// Note: This is a simplified parser for common patterns.
+    /// </summary>
+    private Dictionary<string, string>? ReadDockerComposeOverride(string coreRepoPath)
+    {
+        var overridePath = Path.Combine(coreRepoPath, "docker-compose.override.yml");
+        if (!File.Exists(overridePath))
+        {
+            _logger.LogDebug("docker-compose.override.yml not found at {OverridePath}", overridePath);
+            return null;
+        }
+
+        try
+        {
+            // For now, we'll just note that the file exists
+            // A full YAML parser would be needed for complete env var extraction
+            // This is a placeholder for future enhancement
+            _logger.LogDebug("docker-compose.override.yml found (env var parsing not yet implemented)");
+            return new Dictionary<string, string>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to read docker-compose.override.yml from {OverridePath}", overridePath);
+            return null;
+        }
     }
 }

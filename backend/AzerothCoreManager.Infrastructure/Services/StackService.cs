@@ -938,16 +938,20 @@ public sealed class StackService : IStackService
             WorldServerPort = discovered.WorldServerPort,
             SoapPort = discovered.SoapPort,
             
-            // Passwords - use provided or generate secure ones
-            DatabaseRootPassword = request.DatabaseRootPassword ?? GenerateSecurePassword(),
-            SoapUsername = request.SoapUsername ?? "admin",
-            SoapPassword = request.SoapPassword ?? "admin",
+            // Passwords - use provided, discovered, or generate secure ones
+            DatabaseRootPassword = request.DatabaseRootPassword 
+                ?? discovered.DiscoveredDatabasePassword 
+                ?? GenerateSecurePassword(),
+            SoapUsername = discovered.DiscoveredSoapUsername ?? request.SoapUsername ?? "admin",
+            SoapPassword = request.SoapPassword 
+                ?? discovered.DiscoveredSoapPassword 
+                ?? "admin",
             
             // Defaults
             MaxPlayers = 100,
             RealmName = "AzerothCore",
-            ModuleIdsJson = "[]",
-            CustomEnvVarsJson = "{}",
+            ModuleIdsJson = JsonSerializer.Serialize(discovered.DiscoveredModules ?? new List<string>()),
+            CustomEnvVarsJson = JsonSerializer.Serialize(discovered.DiscoveredEnvVars ?? new Dictionary<string, string>()),
             
             // Version info from git
             CoreRepositoryUrl = discovered.CoreRepositoryUrl ?? string.Empty,

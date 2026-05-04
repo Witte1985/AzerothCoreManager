@@ -92,6 +92,11 @@ export interface DiscoveredStackDto {
   coreBranch?: string
   coreCommitSha?: string
   discoveredAt: string
+  discoveredModules?: string[]
+  discoveredDatabasePassword?: string
+  discoveredSoapUsername?: string
+  discoveredSoapPassword?: string
+  discoveredEnvVars?: Record<string, string>
 }
 
 export interface ImportStackRequestDto {

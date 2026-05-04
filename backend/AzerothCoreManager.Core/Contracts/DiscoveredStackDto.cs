@@ -74,4 +74,29 @@ public class DiscoveredStackDto
     /// When this stack was discovered
     /// </summary>
     public DateTime DiscoveredAt { get; set; }
+    
+    /// <summary>
+    /// Modules discovered in the stack's modules directory
+    /// </summary>
+    public List<string>? DiscoveredModules { get; set; }
+    
+    /// <summary>
+    /// Database root password discovered from .env file
+    /// </summary>
+    public string? DiscoveredDatabasePassword { get; set; }
+    
+    /// <summary>
+    /// SOAP username discovered from configuration
+    /// </summary>
+    public string? DiscoveredSoapUsername { get; set; }
+    
+    /// <summary>
+    /// SOAP password discovered from configuration
+    /// </summary>
+    public string? DiscoveredSoapPassword { get; set; }
+    
+    /// <summary>
+    /// Custom environment variables discovered from docker-compose.override.yml
+    /// </summary>
+    public Dictionary<string, string>? DiscoveredEnvVars { get; set; }
 }
