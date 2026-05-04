@@ -7,6 +7,7 @@ import { stackKeys } from '@/hooks/useStacks'
 import EditStackConfigModal from '@/components/EditStackConfigModal'
 import UpdateStackDialog from '@/components/UpdateStackDialog'
 import AccountsTab from '@/components/accounts/AccountsTab'
+import { CiBuildStatusBadge } from '@/components/CiBuildStatusBadge'
 
 // Helper to format commit SHAs safely
 const formatSha = (sha?: string | null): string => {
@@ -417,16 +418,25 @@ export default function StackDetailsPage() {
         <div className="mb-8">
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
             <div className="flex items-start justify-between mb-4">
-              <div>
+              <div className="flex-1">
                 <h2 className="text-xl font-semibold text-amber-900 mb-2">Updates Available</h2>
-                <p className="text-sm text-amber-800">
+                <p className="text-sm text-amber-800 mb-3">
                   New versions are available for this stack. Update to get the latest features and bug fixes.
                 </p>
+                {/* CI Build Status Badge */}
+                {stack.updateStatus.latestCoreBuildStatus && (
+                  <div className="mb-3">
+                    <CiBuildStatusBadge 
+                      status={stack.updateStatus.latestCoreBuildStatus} 
+                      showDetails={false}
+                    />
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => setShowUpdateDialog(true)}
                 disabled={stack.status === StackStatus.Building}
-                className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 transition"
+                className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 transition ml-4"
                 title={stack.status === StackStatus.Building ? 'Wait for build to finish' : 'Update stack'}
               >
                 Update Stack
