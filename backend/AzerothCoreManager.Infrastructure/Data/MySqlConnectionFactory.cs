@@ -2,6 +2,7 @@ using System.Data.Common;
 using AzerothCoreManager.Core.Services.Interfaces;
 using AzerothCoreManager.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using MySql.Data.MySqlClient;
 
 namespace AzerothCoreManager.Infrastructure.Data;
@@ -12,10 +13,12 @@ namespace AzerothCoreManager.Infrastructure.Data;
 public class MySqlConnectionFactory : IMySqlConnectionFactory
 {
     private readonly AzerothCoreDbContext _dbContext;
+    private readonly string _mysqlHost;
 
-    public MySqlConnectionFactory(AzerothCoreDbContext dbContext)
+    public MySqlConnectionFactory(AzerothCoreDbContext dbContext, IConfiguration configuration)
     {
         _dbContext = dbContext;
+        _mysqlHost = configuration["MySQL:Host"] ?? "localhost";
     }
 
     public async Task<DbConnection> CreateConnectionAsync(string stackId, string database, CancellationToken cancellationToken = default)
@@ -37,12 +40,11 @@ public class MySqlConnectionFactory : IMySqlConnectionFactory
             _ => throw new ArgumentException($"Unknown database type: {database}. Valid values are: auth, world, characters", nameof(database))
         };
 
-        // Connect to localhost since the backend is running on the host machine
-        // The MySQL container exposes its port to the host
-        // Use MySqlConnectionStringBuilder to properly escape special characters in password
+        // Connect to MySQL using configured host (localhost for local dev, host.docker.internal for Docker)
+        // The stack's MySQL containers expose their ports to the host
         var builder = new MySqlConnectionStringBuilder
         {
-            Server = "localhost",
+            Server = _mysqlHost,
             Port = (uint)stack.DatabasePort,
             Database = dbName,
             UserID = "root",
