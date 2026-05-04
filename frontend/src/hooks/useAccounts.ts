@@ -5,6 +5,8 @@ import type {
   SetGmLevelRequest,
   BanAccountRequest,
   SetPasswordRequest,
+  DeleteAccountRequest,
+  UnbanAccountRequest,
   UnbanIpRequest,
   SendMessageRequest,
   SendItemsRequest,
