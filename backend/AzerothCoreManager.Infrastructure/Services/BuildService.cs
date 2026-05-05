@@ -326,7 +326,8 @@ public sealed class BuildService : IBuildService
         await AddLogAsync(stackId, "Environment configuration created");
 
         // Create docker-compose.override.yml for custom settings
-        var overrideContent = GenerateDockerComposeOverride(stackId, configuration);
+        var modulesPath = TranslateToHostPath(Path.Combine(repoPath, "modules"));
+        var overrideContent = GenerateDockerComposeOverride(stackId, configuration, modulesPath);
         await File.WriteAllTextAsync(overridePath, overrideContent, cancellationToken);
         await AddLogAsync(stackId, "Docker Compose override created");
 
@@ -349,7 +350,7 @@ public sealed class BuildService : IBuildService
         
         // Use stackId as unique image tag to avoid collision between stacks
         sb.AppendLine($"DOCKER_IMAGE_TAG={stackId}");
-        sb.AppendLine($"COMPOSE_PROJECT_NAME={GetComposeProjectName(stackId)}");
+        sb.AppendLine($"COMPOSE_PROJECT_NAME={DockerComposeOverrideGenerator.GetComposeProjectName(stackId)}");
         
         // User/Group IDs for Podman/Docker
         sb.AppendLine("DOCKER_USER_ID=1000");
@@ -409,64 +410,9 @@ public sealed class BuildService : IBuildService
         return hostPath;
     }
 
-    private string GenerateDockerComposeOverride(string stackId, StackConfigurationDto config)
+    private string GenerateDockerComposeOverride(string stackId, StackConfigurationDto config, string modulesHostPath)
     {
-        var composeProjectName = GetComposeProjectName(stackId);
-        var sb = new StringBuilder();
-        sb.AppendLine("# Docker Compose Override - Custom Configuration");
-        sb.AppendLine("# This file overrides settings from docker-compose.yml");
-        sb.AppendLine();
-        sb.AppendLine("services:");
-
-        AppendServiceOverride(sb, "ac-database", $"{composeProjectName}-database");
-        AppendServiceOverride(sb, "ac-db-import", $"{composeProjectName}-db-import");
-        AppendWorldserverOverride(sb, composeProjectName, config);
-        AppendAuthserverOverride(sb, composeProjectName);
-        AppendServiceOverride(sb, "ac-client-data-init", $"{composeProjectName}-client-data-init");
-        AppendServiceOverride(sb, "ac-tools", $"{composeProjectName}-tools");
-        AppendServiceOverride(sb, "ac-dev-server", $"{composeProjectName}-dev-server");
-
-        return sb.ToString();
-    }
-
-    private static void AppendServiceOverride(StringBuilder sb, string serviceName, string containerName)
-    {
-        sb.AppendLine($"  {serviceName}:");
-        sb.AppendLine($"    container_name: {containerName}");
-    }
-
-    private static void AppendWorldserverOverride(StringBuilder sb, string composeProjectName, StackConfigurationDto config)
-    {
-        sb.AppendLine("  ac-worldserver:");
-        sb.AppendLine($"    container_name: {composeProjectName}-worldserver");
-
-        // Mount modules directory for SQL migrations (critical for modules like Playerbots)
-        sb.AppendLine("    volumes:");
-        sb.AppendLine("      - ./modules:/azerothcore/modules:ro");
-
-        if (config.Advanced.CustomEnvVars.Count == 0)
-        {
-            return;
-        }
-
-        sb.AppendLine("    environment:");
-        foreach (var (key, value) in config.Advanced.CustomEnvVars)
-        {
-            sb.AppendLine($"      {key}: \"{value}\"");
-        }
-    }
-
-    private static void AppendAuthserverOverride(StringBuilder sb, string composeProjectName)
-    {
-        sb.AppendLine("  ac-authserver:");
-        sb.AppendLine($"    container_name: {composeProjectName}-authserver");
-        sb.AppendLine("    ports:");
-        sb.AppendLine("      - \"${DOCKER_AUTH_EXTERNAL_PORT}:3724\"");
-    }
-
-    private static string GetComposeProjectName(string stackId)
-    {
-        return $"acore-{stackId}";
+        return DockerComposeOverrideGenerator.Generate(stackId, config.Advanced.CustomEnvVars, modulesHostPath);
     }
 
     private async Task BuildDockerImagesAsync(string stackId, string buildPath, CancellationToken cancellationToken)

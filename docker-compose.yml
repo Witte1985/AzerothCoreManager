@@ -21,14 +21,13 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - Docker__BuildsPath=/app/data/stacks
-      - Docker__HostDataPath=${HOST_DATA_PATH:-/app/data}
+      # HostDataPath MUST be the absolute HOST filesystem path where ./data is located
+      # This is required for Docker-in-Docker volume mounts to work correctly
+      # Set HOST_DATA_PATH in .env file or use ${PWD}/data when running from project root
+      - Docker__HostDataPath=${HOST_DATA_PATH}
       - Docker__ComposeCommand=plugin
       - MySQL__Host=host.docker.internal
       - SOAP__Host=host.docker.internal
-      # Manager's own database - persisted via ./data:/app/data volume mount above
-      # This is the MANAGER'S metadata DB, not an AzerothCore DB
-      # Uses container path /app/data because this runs INSIDE the manager container
-      # HOST_DATA_PATH is only for nested AzerothCore containers created by this manager
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/azerothcore-manager.db
     restart: unless-stopped
     networks:
