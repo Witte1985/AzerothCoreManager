@@ -57,12 +57,15 @@ public static class DockerComposeOverrideGenerator
         var modulesMount = modulesHostPath ?? "./modules";
         sb.AppendLine($"      - {modulesMount}:/azerothcore/modules:ro");
 
-        if (customEnvironment.Count == 0)
-        {
-            return;
-        }
-
+        // Always add environment variables section (for SOAP at minimum)
         sb.AppendLine("    environment:");
+        
+        // Enable SOAP by default for remote management (AC_ prefix + setting with underscores)
+        sb.AppendLine("      AC_SOAP_ENABLED: \"1\"");
+        sb.AppendLine("      AC_SOAP_IP: \"0.0.0.0\"");
+        sb.AppendLine("      AC_SOAP_PORT: \"7878\"");
+        
+        // Add custom environment variables
         foreach (var (key, value) in customEnvironment)
         {
             sb.AppendLine($"      {key}: \"{value}\"");
