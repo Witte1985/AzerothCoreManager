@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, Loader2, Users, Shield } from 'lucide-react'
+import { Plus, Search, Loader2, Users, Shield, Bot } from 'lucide-react'
 import { useAccounts, useCreateAccount } from '@/hooks/useAccounts'
 import type { AccountDto } from '@/types/account.types'
 import AccountDetailsPanel from './AccountDetailsPanel'
@@ -9,22 +9,40 @@ interface AccountsTabProps {
   stackId: string
 }
 
+const BOT_ACCOUNT_PATTERN = /^RNDBOT\d+$/i
+
 export default function AccountsTab({ stackId }: AccountsTabProps) {
   const { data: accounts, isLoading, error } = useAccounts(stackId)
   const createAccountMutation = useCreateAccount(stackId)
   const [selectedAccount, setSelectedAccount] = useState<AccountDto | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [hideBots, setHideBots] = useState(true) // Hide bots by default
 
-  // Filter accounts by search query
+  // Filter and sort accounts
   const filteredAccounts = useMemo(() => {
     if (!accounts) return []
-    if (!searchQuery.trim()) return accounts
-    const query = searchQuery.toLowerCase()
-    return accounts.filter((account) =>
-      account.username.toLowerCase().includes(query)
-    )
-  }, [accounts, searchQuery])
+    
+    let filtered = [...accounts]
+    
+    // Filter out bot accounts if enabled
+    if (hideBots) {
+      filtered = filtered.filter((account) => !BOT_ACCOUNT_PATTERN.test(account.username))
+    }
+    
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter((account) =>
+        account.username.toLowerCase().includes(query)
+      )
+    }
+    
+    // Always sort alphabetically
+    filtered.sort((a, b) => a.username.localeCompare(b.username))
+    
+    return filtered
+  }, [accounts, searchQuery, hideBots])
 
   const handleCreateAccount = async (username: string, password: string) => {
     await createAccountMutation.mutateAsync({
@@ -117,16 +135,30 @@ export default function AccountsTab({ stackId }: AccountsTabProps) {
           </button>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search accounts by username..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+        {/* Search and Filters */}
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search accounts by username..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <button
+            onClick={() => setHideBots(!hideBots)}
+            className={`px-4 py-2 rounded-md border flex items-center gap-2 transition-colors ${
+              hideBots
+                ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+            title={hideBots ? 'Show bot accounts (RNDBOT0-99)' : 'Hide bot accounts (RNDBOT0-99)'}
+          >
+            <Bot className="w-4 h-4" />
+            {hideBots ? 'Bots Hidden' : 'Show All'}
+          </button>
         </div>
 
         {/* Layout: Table + Details Panel */}
