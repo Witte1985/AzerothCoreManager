@@ -896,6 +896,24 @@ public sealed class StackService : IStackService
             throw new StackConflictException($"Stack with ID '{stackId}' already exists in the database");
         }
 
+        // Validate git information is present (critical for updates)
+        if (string.IsNullOrEmpty(discovered.CoreRepositoryUrl))
+        {
+            _logger.LogWarning(
+                "Stack {StackId} has no git repository URL. Updates will not work correctly.", 
+                stackId);
+        }
+        
+        if (string.IsNullOrEmpty(discovered.CoreCommitSha))
+        {
+            _logger.LogWarning(
+                "Stack {StackId} has no git commit SHA. Unable to determine current version.", 
+                stackId);
+        }
+
+        // Validate ServerType matches discovered git info
+        ValidateServerTypeConsistency(discovered);
+
         // Check for port conflicts
         var allStacks = await _dbContext.ManagedStacks.ToListAsync(cancellationToken);
         
@@ -920,6 +938,52 @@ public sealed class StackService : IStackService
             {
                 throw new StackConflictException(
                     $"SOAP port {discovered.SoapPort} is already in use by stack '{stack.StackName}'");
+            }
+        }
+    }
+
+    private void ValidateServerTypeConsistency(DiscoveredStackDto discovered)
+    {
+        if (string.IsNullOrEmpty(discovered.CoreRepositoryUrl))
+        {
+            return; // Already logged warning above
+        }
+
+        var normalizedUrl = discovered.CoreRepositoryUrl.TrimEnd('/').ToLowerInvariant();
+        if (normalizedUrl.EndsWith(".git"))
+        {
+            normalizedUrl = normalizedUrl[..^4];
+        }
+
+        // Validate Playerbots
+        if (discovered.InferredServerType == ServerType.Playerbots)
+        {
+            if (!normalizedUrl.Contains("mod-playerbots/azerothcore-wotlk"))
+            {
+                _logger.LogError(
+                    "Stack {StackId} detected as Playerbots but repository URL doesn't match: {Url}. " +
+                    "Updates may fail.", 
+                    discovered.StackId, discovered.CoreRepositoryUrl);
+            }
+            
+            if (!string.IsNullOrEmpty(discovered.CoreBranch) && 
+                !discovered.CoreBranch.Equals("Playerbot", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning(
+                    "Stack {StackId} detected as Playerbots but branch is '{Branch}' (expected 'Playerbot'). " +
+                    "Updates may use incorrect branch.", 
+                    discovered.StackId, discovered.CoreBranch);
+            }
+        }
+        // Validate Standard
+        else if (discovered.InferredServerType == ServerType.Standard)
+        {
+            if (normalizedUrl.Contains("mod-playerbots"))
+            {
+                _logger.LogWarning(
+                    "Stack {StackId} has mod-playerbots in URL but was detected as Standard type. " +
+                    "This may be due to branch mismatch. URL: {Url}, Branch: {Branch}", 
+                    discovered.StackId, discovered.CoreRepositoryUrl, discovered.CoreBranch);
             }
         }
     }

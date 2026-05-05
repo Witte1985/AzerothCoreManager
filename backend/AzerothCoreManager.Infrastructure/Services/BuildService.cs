@@ -145,27 +145,51 @@ public sealed class BuildService : IBuildService
             Directory.CreateDirectory(buildPath);
             _logger.LogInformation("Build path created: {BuildPath}", buildPath);
 
-            // Determine repository URL and branch for version tracking
-            var (repoUrl, branch) = configuration.ServerType switch
-            {
-                ServerType.Playerbots => ("https://github.com/mod-playerbots/azerothcore-wotlk.git", "Playerbot"),
-                _ => ("https://github.com/azerothcore/azerothcore-wotlk.git", "master")
-            };
+            // Determine repository URL and branch
+            // For updates (configuration is null), use stored values from database if available
+            // For new builds, use the configuration-based defaults
+            string repoUrl;
+            string branch;
             
-            // Save core repository info to database for version tracking
             using (var scope = _scopeFactory.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<AzerothCoreDbContext>();
                 var stack = await dbContext.ManagedStacks.SingleOrDefaultAsync(s => s.Id == stackId, cancellationToken);
-                if (stack is not null)
+                
+                if (stack is not null && !string.IsNullOrEmpty(stack.CoreRepositoryUrl))
                 {
-                    stack.CoreRepositoryUrl = repoUrl;
-                    stack.CoreBranch = branch;
-                    await dbContext.SaveChangesAsync(cancellationToken);
+                    // Use stored repository info (handles imported stacks and updates)
+                    repoUrl = stack.CoreRepositoryUrl;
+                    branch = !string.IsNullOrEmpty(stack.CoreBranch) ? stack.CoreBranch : "master";
+                    
+                    _logger.LogInformation(
+                        "Using stored repository info for stack {StackId}: {RepoUrl} @ {Branch}",
+                        stackId, repoUrl, branch);
+                }
+                else
+                {
+                    // Fall back to ServerType-based defaults (new builds only)
+                    (repoUrl, branch) = configuration.ServerType switch
+                    {
+                        ServerType.Playerbots => ("https://github.com/mod-playerbots/azerothcore-wotlk.git", "Playerbot"),
+                        _ => ("https://github.com/azerothcore/azerothcore-wotlk.git", "master")
+                    };
+                    
+                    _logger.LogInformation(
+                        "Using default repository for ServerType {ServerType}: {RepoUrl} @ {Branch}",
+                        configuration.ServerType, repoUrl, branch);
+                    
+                    // Save repository info to database for future updates
+                    if (stack is not null)
+                    {
+                        stack.CoreRepositoryUrl = repoUrl;
+                        stack.CoreBranch = branch;
+                        await dbContext.SaveChangesAsync(cancellationToken);
+                    }
                 }
             }
 
-            await CloneRepositoryAsync(stackId, buildPath, configuration, cancellationToken);
+            await CloneRepositoryAsync(stackId, buildPath, repoUrl, branch, configuration, cancellationToken);
             _logger.LogInformation("Repository cloned successfully for stack {StackId}", stackId);
             
             await PrepareModulesAsync(stackId, buildPath, configuration, cancellationToken);
@@ -197,18 +221,17 @@ public sealed class BuildService : IBuildService
         }
     }
 
-    private async Task CloneRepositoryAsync(string stackId, string buildPath, StackConfigurationDto configuration, CancellationToken cancellationToken)
+    private async Task CloneRepositoryAsync(
+        string stackId, 
+        string buildPath, 
+        string repoUrl, 
+        string branch, 
+        StackConfigurationDto configuration, 
+        CancellationToken cancellationToken)
     {
         await UpdateBuildStatusAsync(stackId, BuildPhase.Cloning, 10, "Cloning AzerothCore repository...", null);
 
         var repoPath = Path.Combine(buildPath, "azerothcore-wotlk");
-        
-        // Determine which repository and branch to use based on server type
-        var (repoUrl, branch) = configuration.ServerType switch
-        {
-            ServerType.Playerbots => ("https://github.com/mod-playerbots/azerothcore-wotlk.git", "Playerbot"),
-            _ => ("https://github.com/azerothcore/azerothcore-wotlk.git", "master")
-        };
         
         if (Directory.Exists(repoPath))
         {
@@ -218,6 +241,7 @@ public sealed class BuildService : IBuildService
         else
         {
             await AddLogAsync(stackId, $"Cloning {configuration.ServerType} AzerothCore repository from GitHub...");
+            await AddLogAsync(stackId, $"Repository: {repoUrl} @ {branch}");
             await RunProcessAsync(
                 stackId,
                 "git",

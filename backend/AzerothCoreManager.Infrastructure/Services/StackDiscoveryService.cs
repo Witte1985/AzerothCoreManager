@@ -117,7 +117,7 @@ public class StackDiscoveryService : IStackDiscoveryService
         {
             StackId = stackId,
             SuggestedName = $"Imported Stack {stackId.Substring(0, Math.Min(8, stackId.Length))}",
-            InferredServerType = InferServerType(gitInfo.RepositoryUrl),
+            InferredServerType = InferServerType(gitInfo.RepositoryUrl, gitInfo.Branch),
             CurrentStatus = status,
             DatabasePort = ports.DatabasePort,
             AuthServerPort = ports.AuthServerPort,
@@ -305,19 +305,65 @@ public class StackDiscoveryService : IStackDiscoveryService
         return output.Trim();
     }
 
-    private static ServerType InferServerType(string? repositoryUrl)
+    private ServerType InferServerType(string? repositoryUrl, string? branch)
     {
         if (string.IsNullOrEmpty(repositoryUrl))
         {
+            _logger.LogWarning("Repository URL is empty, defaulting to Standard server type");
             return ServerType.Standard;
         }
 
-        // Check if URL contains mod-playerbots
-        if (repositoryUrl.Contains("mod-playerbots", StringComparison.OrdinalIgnoreCase))
+        // Normalize URL for comparison (remove .git suffix, convert to lowercase)
+        var normalizedUrl = repositoryUrl.TrimEnd('/').ToLowerInvariant();
+        if (normalizedUrl.EndsWith(".git"))
         {
-            return ServerType.Playerbots;
+            normalizedUrl = normalizedUrl[..^4];
         }
 
+        // Check for mod-playerbots fork
+        // Expected patterns:
+        // - https://github.com/mod-playerbots/azerothcore-wotlk
+        // - git@github.com:mod-playerbots/azerothcore-wotlk
+        if (normalizedUrl.Contains("github.com") && normalizedUrl.Contains("mod-playerbots/azerothcore-wotlk"))
+        {
+            // Validate branch name for playerbots (typically "Playerbot" with capital P)
+            if (!string.IsNullOrEmpty(branch))
+            {
+                if (branch.Equals("Playerbot", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation("Detected Playerbots fork: URL={Url}, Branch={Branch}", repositoryUrl, branch);
+                    return ServerType.Playerbots;
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Repository URL matches Playerbots fork but branch is '{Branch}' (expected 'Playerbot'). " +
+                        "Defaulting to Standard type. URL: {Url}", 
+                        branch, repositoryUrl);
+                }
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Repository URL matches Playerbots fork but branch is unknown. " +
+                    "Defaulting to Standard type. URL: {Url}", 
+                    repositoryUrl);
+            }
+        }
+
+        // Check for standard AzerothCore repository
+        if (normalizedUrl.Contains("github.com") && normalizedUrl.Contains("azerothcore/azerothcore-wotlk"))
+        {
+            _logger.LogInformation("Detected standard AzerothCore: URL={Url}, Branch={Branch}", repositoryUrl, branch);
+            return ServerType.Standard;
+        }
+
+        // Unknown repository - log warning and default to Standard
+        _logger.LogWarning(
+            "Unknown repository URL pattern: {Url}. Defaulting to Standard server type. " +
+            "Stack may not update correctly.", 
+            repositoryUrl);
+        
         return ServerType.Standard;
     }
     
