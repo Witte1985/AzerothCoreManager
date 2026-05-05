@@ -988,6 +988,15 @@ public sealed class StackService : IStackService
         }
     }
 
+    private static string GetDefaultBranchForServerType(ServerType serverType)
+    {
+        return serverType switch
+        {
+            ServerType.Playerbots => "Playerbot",
+            _ => "master"
+        };
+    }
+
     private ManagedStackEntity CreateEntityFromDiscovery(
         string stackId,
         DiscoveredStackDto discovered,
@@ -1025,8 +1034,11 @@ public sealed class StackService : IStackService
             CustomEnvVarsJson = JsonSerializer.Serialize(discovered.DiscoveredEnvVars ?? new Dictionary<string, string>()),
             
             // Version info from git
+            // IMPORTANT: Use discovered branch if available, otherwise infer from ServerType
             CoreRepositoryUrl = discovered.CoreRepositoryUrl ?? string.Empty,
-            CoreBranch = discovered.CoreBranch ?? "master",
+            CoreBranch = !string.IsNullOrEmpty(discovered.CoreBranch) 
+                ? discovered.CoreBranch 
+                : GetDefaultBranchForServerType(discovered.InferredServerType),
             CoreCommitSha = discovered.CoreCommitSha ?? string.Empty,
             
             // Timestamps
