@@ -440,6 +440,10 @@ public sealed class BuildService : IBuildService
         sb.AppendLine("  ac-worldserver:");
         sb.AppendLine($"    container_name: {composeProjectName}-worldserver");
 
+        // Mount modules directory for SQL migrations (critical for modules like Playerbots)
+        sb.AppendLine("    volumes:");
+        sb.AppendLine("      - ./modules:/azerothcore/modules:ro");
+
         if (config.Advanced.CustomEnvVars.Count == 0)
         {
             return;
