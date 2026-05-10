@@ -7,12 +7,13 @@ This project can be run in Docker as a single container that includes both the f
 ### 1. Configure Environment
 
 ```bash
-# Copy the example environment file
-cp .env.example .env
+# Quickest way — generates the correct absolute path automatically:
+echo "HOST_DATA_PATH=$(pwd)/data" > .env
 
-# Edit .env and set HOST_DATA_PATH to the absolute path of the data directory
-# Example: HOST_DATA_PATH=/home/username/Projects/AzerothCoreManager/data
-nano .env
+# Or copy the example and edit manually:
+cp .env.example .env
+# Linux:  HOST_DATA_PATH=/home/username/AzerothCoreManager/data
+# macOS:  HOST_DATA_PATH=/Users/username/AzerothCoreManager/data
 ```
 
 **Important:** The `HOST_DATA_PATH` must be the **absolute path** on your host system to the `data` directory. This is required for volume mounting in nested Docker containers created by AzerothCore Manager.
@@ -145,7 +146,22 @@ docker-compose up -d
 
 ## Troubleshooting
 
-### Container can't start managed stacks
+### macOS: Volume mounting fails after first setup
+
+On macOS the `.env` file (project root) is required before running `docker compose up`. If it was missing, the manager container started without `HOST_DATA_PATH`, causing it to write wrong container-internal paths (`/app/data/stacks/...`) into the generated `docker-compose.override.yml` and `.env` files inside each stack.
+
+**Fix:**
+```bash
+# 1. Create the .env file (run from project root)
+echo "HOST_DATA_PATH=$(pwd)/data" > .env
+
+# 2. Restart the manager so it picks up the new config
+docker compose down && docker compose up -d
+```
+
+The next time you start a stack through the UI, `EnsureRuntimeConfigurationAsync` will automatically regenerate the stack's configuration files with the correct macOS host paths.
+
+
 
 Ensure Docker socket is mounted correctly:
 ```bash

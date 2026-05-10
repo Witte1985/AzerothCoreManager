@@ -10,6 +10,10 @@ public interface IAccountManagementService
     // Account queries (MySQL)
     Task<List<AccountDto>> GetAccountsAsync(string stackId, CancellationToken cancellationToken = default);
     Task<List<CharacterDto>> GetCharactersAsync(string stackId, int accountId, CancellationToken cancellationToken = default);
+    Task<List<CharacterDto>> GetAllCharactersAsync(string stackId, CancellationToken cancellationToken = default);
+
+    // AH Bot setup (direct DB injection)
+    Task<AhBotSetupResultDto> CreateAhBotCharactersAsync(string stackId, CancellationToken cancellationToken = default);
     
     // Account actions (SOAP)
     Task<bool> CreateAccountAsync(string stackId, string username, string password, CancellationToken cancellationToken = default);

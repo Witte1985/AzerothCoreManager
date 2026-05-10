@@ -1174,4 +1174,38 @@ public sealed class StackService : IStackService
         
         return new string(password);
     }
+
+    public async Task<bool> ApplyModuleConfigAsync(string stackId, Dictionary<string, string> envVars, CancellationToken cancellationToken = default)
+    {
+        var stack = await _dbContext.ManagedStacks
+            .SingleOrDefaultAsync(s => s.Id == stackId, cancellationToken);
+
+        if (stack is null)
+        {
+            throw new StackNotFoundException($"Stack with ID '{stackId}' not found.");
+        }
+
+        var existing = Deserialize<Dictionary<string, string>>(stack.CustomEnvVarsJson)
+            ?? new Dictionary<string, string>();
+
+        foreach (var (key, value) in envVars)
+        {
+            existing[key] = value;
+        }
+
+        stack.CustomEnvVarsJson = JsonSerializer.Serialize(existing, JsonOptions);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Applied {Count} module env var(s) to stack {StackId}", envVars.Count, stackId);
+
+        // Regenerate runtime config files if stack has been built
+        var stackPath = GetStackPath(stackId);
+        var repoPath = Path.Combine(stackPath, "azerothcore-wotlk");
+        if (Directory.Exists(repoPath))
+        {
+            await EnsureRuntimeConfigurationAsync(stack, repoPath, cancellationToken);
+        }
+
+        return true;
+    }
 }

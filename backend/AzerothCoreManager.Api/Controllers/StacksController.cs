@@ -154,22 +154,43 @@ public class StacksController : ControllerBase
     [HttpPost("{stackId}/start")]
     public async Task<IActionResult> Start(string stackId, CancellationToken cancellationToken)
     {
-        var started = await _stackService.StartAsync(stackId, cancellationToken);
-        return started ? Ok() : NotFound();
+        try
+        {
+            var started = await _stackService.StartAsync(stackId, cancellationToken);
+            return started ? Ok() : NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+        }
     }
 
     [HttpPost("{stackId}/stop")]
     public async Task<IActionResult> Stop(string stackId, CancellationToken cancellationToken)
     {
-        var stopped = await _stackService.StopAsync(stackId, cancellationToken);
-        return stopped ? Ok() : NotFound();
+        try
+        {
+            var stopped = await _stackService.StopAsync(stackId, cancellationToken);
+            return stopped ? Ok() : NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+        }
     }
 
     [HttpPost("{stackId}/restart")]
     public async Task<IActionResult> Restart(string stackId, CancellationToken cancellationToken)
     {
-        var restarted = await _stackService.RestartAsync(stackId, cancellationToken);
-        return restarted ? Ok() : NotFound();
+        try
+        {
+            var restarted = await _stackService.RestartAsync(stackId, cancellationToken);
+            return restarted ? Ok() : NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+        }
     }
 
     /// <summary>
@@ -315,4 +336,35 @@ public class StacksController : ControllerBase
             return BadRequest(new { success = false, error = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Apply module-specific environment variable overrides to a stack.
+    /// Changes are persisted and take effect on the next stack restart.
+    /// </summary>
+    [HttpPost("{stackId}/module-config")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ApplyModuleConfig(
+        string stackId,
+        [FromBody] ApplyModuleConfigRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.EnvVars == null || request.EnvVars.Count == 0)
+        {
+            return BadRequest(new { error = "At least one environment variable is required." });
+        }
+
+        try
+        {
+            await _stackService.ApplyModuleConfigAsync(stackId, request.EnvVars, cancellationToken);
+            return Ok(new { success = true, message = "Module configuration applied. Restart the stack to take effect." });
+        }
+        catch (StackNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+    }
 }
+
+public record ApplyModuleConfigRequest(Dictionary<string, string> EnvVars);

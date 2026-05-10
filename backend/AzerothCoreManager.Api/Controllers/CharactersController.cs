@@ -19,6 +19,53 @@ public class CharactersController : ControllerBase
     }
 
     /// <summary>
+    /// Get all characters across all accounts for a stack
+    /// </summary>
+    [HttpGet]
+    public async Task<ActionResult<List<CharacterDto>>> GetAll(
+        string stackId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var characters = await _accountService.GetAllCharactersAsync(stackId, cancellationToken);
+            return Ok(characters);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = $"Failed to retrieve characters: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Create the dedicated AH Bot account and inject Alliance + Horde bot characters directly into the database.
+    /// Idempotent — safe to call multiple times.
+    /// </summary>
+    [HttpPost("ahbot-account")]
+    public async Task<ActionResult<AhBotSetupResultDto>> CreateAhBotAccount(
+        string stackId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = await _accountService.CreateAhBotCharactersAsync(stackId, cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = $"Failed to create AH Bot account: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
     /// Send a message to a character
     /// </summary>
     [HttpPost("{characterName}/send-message")]

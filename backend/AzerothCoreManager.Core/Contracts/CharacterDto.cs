@@ -21,6 +21,11 @@ public class CharacterDto
     public int Account { get; set; }
     
     /// <summary>
+    /// Account username (populated when querying all characters)
+    /// </summary>
+    public string? AccountUsername { get; set; }
+    
+    /// <summary>
     /// Character level
     /// </summary>
     public int Level { get; set; }

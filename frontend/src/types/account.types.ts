@@ -24,6 +24,7 @@ export interface CharacterDto {
   leveltime: number
   money: number
   account: number
+  accountUsername?: string
   map: number
   zone: number
 }
@@ -95,4 +96,11 @@ export interface AccountActionResponse {
 export interface CharacterActionResponse {
   success: boolean
   message: string
+}
+
+export interface AhBotSetupResultDto {
+  accountId: number
+  allianceGuid: number
+  hordeGuid: number
+  charactersCreated: boolean
 }

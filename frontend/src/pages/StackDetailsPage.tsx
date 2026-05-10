@@ -7,6 +7,7 @@ import { stackKeys } from '@/hooks/useStacks'
 import EditStackConfigModal from '@/components/EditStackConfigModal'
 import UpdateStackDialog from '@/components/UpdateStackDialog'
 import AccountsTab from '@/components/accounts/AccountsTab'
+import ModuleSetupWarnings from '@/components/modules/ModuleSetupWarnings'
 import { CiBuildStatusBadge } from '@/components/CiBuildStatusBadge'
 
 // Helper to format commit SHAs safely
@@ -449,6 +450,9 @@ export default function StackDetailsPage() {
 
       {activeTab === 'overview' && (
         <>
+      {/* Module setup warnings */}
+      <ModuleSetupWarnings stack={stack} />
+
       {/* Updates Available Section */}
       {stack.updateStatus?.hasUpdates && (
         <div className="mb-8">

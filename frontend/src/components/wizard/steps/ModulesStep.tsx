@@ -23,12 +23,25 @@ export function ModulesStep({ form }: ModulesStepProps) {
       module.description.toLowerCase().includes(search.toLowerCase())
   )
 
+  // Module-specific env var defaults to inject when a module is toggled on
+  const MODULE_ENV_DEFAULTS: Record<string, Record<string, string>> = {
+    'mod-ah-bot': { AC_AUCTION_HOUSE_BOT_GUIDS: '' },
+  }
+
   const toggle = (id: string) => {
-    const next = selectedIds.includes(id)
+    const isRemoving = selectedIds.includes(id)
+    const next = isRemoving
       ? selectedIds.filter((selectedId: string) => selectedId !== id)
       : [...selectedIds, id]
 
     setValue('moduleIds', next, { shouldDirty: true })
+
+    // Auto-inject module-specific env var defaults when module is enabled
+    if (!isRemoving && MODULE_ENV_DEFAULTS[id]) {
+      const current = (form.getValues('advanced.customEnvVars') as Record<string, string>) ?? {}
+      const merged = { ...MODULE_ENV_DEFAULTS[id], ...current } // current values win (don't overwrite existing)
+      form.setValue('advanced.customEnvVars', merged, { shouldDirty: true })
+    }
   }
 
   return (

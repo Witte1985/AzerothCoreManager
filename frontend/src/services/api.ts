@@ -69,6 +69,10 @@ export const stackApi = {
   // Admin account initialization
   initializeAdmin: (stackId: string) =>
     apiClient.post<{ success: boolean; created: boolean; message: string }>(`/stacks/${stackId}/initialize-admin`),
+
+  // Module configuration (post-setup env var overrides)
+  applyModuleConfig: (stackId: string, envVars: Record<string, string>) =>
+    apiClient.post<{ success: boolean; message: string }>(`/stacks/${stackId}/module-config`, { envVars }),
 }
 
 // Build API
@@ -86,6 +90,14 @@ export const buildApi = {
   // Cleanup build files
   cleanup: (stackId: string) => 
     apiClient.delete<{ freedSpace: number }>(`/stacks/${stackId}/build/files`),
+}
+
+// Characters API
+export const charactersApi = {
+  getAll: (stackId: string) =>
+    apiClient.get<import('@/types/account.types').CharacterDto[]>(`/stacks/${stackId}/characters`),
+  createAhBotAccount: (stackId: string) =>
+    apiClient.post<import('@/types/account.types').AhBotSetupResultDto>(`/stacks/${stackId}/characters/ahbot-account`),
 }
 
 // Module API

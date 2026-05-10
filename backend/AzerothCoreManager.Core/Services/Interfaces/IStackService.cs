@@ -37,9 +37,7 @@ public interface IStackService
         ImportStackRequestDto request, 
         CancellationToken cancellationToken = default);
     
-    /// <summary>
-    /// Initialize SOAP admin account for a stack by creating the account in the worldserver database
-    /// </summary>
+    Task<bool> ApplyModuleConfigAsync(string stackId, Dictionary<string, string> envVars, CancellationToken cancellationToken = default);
     /// <param name="stackId">Stack identifier</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if account was created successfully, false if already initialized</returns>

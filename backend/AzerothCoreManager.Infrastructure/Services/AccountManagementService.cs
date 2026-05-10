@@ -1,5 +1,6 @@
 using AzerothCoreManager.Core.Contracts;
 using AzerothCoreManager.Core.Services.Interfaces;
+using AzerothCoreManager.Infrastructure.Helpers;
 using Dapper;
 using Microsoft.Extensions.Logging;
 
@@ -77,6 +78,34 @@ public class AccountManagementService : IAccountManagementService
             ORDER BY level DESC, totaltime DESC";
 
         var characters = await connection.QueryAsync<CharacterDto>(sql, new { AccountId = accountId });
+        return characters.ToList();
+    }
+
+    public async Task<List<CharacterDto>> GetAllCharactersAsync(string stackId, CancellationToken cancellationToken = default)
+    {
+        using var connection = await _connectionFactory.CreateConnectionAsync(stackId, "characters", cancellationToken);
+
+        var sql = @"
+            SELECT 
+                c.guid AS Guid,
+                c.name AS Name,
+                c.account AS Account,
+                a.username AS AccountUsername,
+                c.level AS Level,
+                c.race AS Race,
+                c.class AS Class,
+                c.gender AS Gender,
+                c.online AS Online,
+                c.totaltime AS TotalTime,
+                c.map AS Map,
+                c.position_x AS PositionX,
+                c.position_y AS PositionY,
+                c.position_z AS PositionZ
+            FROM characters c
+            LEFT JOIN acore_auth.account a ON c.account = a.id
+            ORDER BY c.name ASC";
+
+        var characters = await connection.QueryAsync<CharacterDto>(sql);
         return characters.ToList();
     }
 
@@ -506,6 +535,91 @@ public class AccountManagementService : IAccountManagementService
             _logger.LogError(ex, "Error setting character {CharacterName} level on stack {StackId}", characterName, stackId);
             return false;
         }
+    }
+
+    #endregion
+    
+    #region AH Bot Setup
+
+    public async Task<AhBotSetupResultDto> CreateAhBotCharactersAsync(string stackId, CancellationToken cancellationToken = default)
+    {
+        const string AhBotUsername = "AHBOT";
+        const string AllianceCharName = "AhBotHuman";
+        const string HordeCharName = "AhBotOrc";
+        const int Money = 10_000_000; // 1000 gold in copper
+
+        _logger.LogInformation("Creating AH Bot account and characters for stack {StackId}", stackId);
+
+        // Step 1: Create AHBOT account in auth DB (idempotent via INSERT IGNORE)
+        var (saltHex, verifierHex) = SrpHelper.CalculateCredentials(AhBotUsername, AhBotUsername);
+        using var authConn = await _connectionFactory.CreateConnectionAsync(stackId, "auth", cancellationToken);
+
+        await authConn.ExecuteAsync(
+            "INSERT IGNORE INTO account (username, salt, verifier, expansion) VALUES (@Username, UNHEX(@Salt), UNHEX(@Verifier), 2)",
+            new { Username = AhBotUsername, Salt = saltHex, Verifier = verifierHex });
+
+        var accountId = await authConn.ExecuteScalarAsync<int>(
+            "SELECT id FROM account WHERE username = @Username",
+            new { Username = AhBotUsername });
+
+        // Step 2: Check for existing bot characters
+        using var charConn = await _connectionFactory.CreateConnectionAsync(stackId, "characters", cancellationToken);
+
+        var existingAllianceGuid = await charConn.ExecuteScalarAsync<int?>(
+            "SELECT guid FROM characters WHERE name = @Name AND account = @AccountId",
+            new { Name = AllianceCharName, AccountId = accountId });
+
+        var existingHordeGuid = await charConn.ExecuteScalarAsync<int?>(
+            "SELECT guid FROM characters WHERE name = @Name AND account = @AccountId",
+            new { Name = HordeCharName, AccountId = accountId });
+
+        if (existingAllianceGuid.HasValue && existingHordeGuid.HasValue)
+        {
+            _logger.LogInformation("AH Bot characters already exist for stack {StackId}: Alliance={AllianceGuid}, Horde={HordeGuid}",
+                stackId, existingAllianceGuid.Value, existingHordeGuid.Value);
+            return new AhBotSetupResultDto(accountId, existingAllianceGuid.Value, existingHordeGuid.Value, CharactersCreated: false);
+        }
+
+        // Step 3: Assign GUIDs and insert missing characters
+        var maxGuid = await charConn.ExecuteScalarAsync<int>("SELECT COALESCE(MAX(guid), 0) FROM characters");
+
+        var allianceGuid = existingAllianceGuid ?? (maxGuid + 1);
+        var hordeGuid = existingHordeGuid ?? (existingAllianceGuid.HasValue ? maxGuid + 1 : maxGuid + 2);
+
+        if (!existingAllianceGuid.HasValue)
+        {
+            // Human Warrior — starts in Northshire Valley (Map 0, Zone 12)
+            await charConn.ExecuteAsync(@"
+                INSERT INTO characters
+                    (guid, account, name, race, class, gender, level, money,
+                     map, zone, position_x, position_y, position_z, orientation,
+                     taximask, innTriggerId, health, power1)
+                VALUES
+                    (@Guid, @AccountId, @Name, 1, 1, 0, 1, @Money,
+                     0, 12, -8949.95, -132.493, 83.5312, 0,
+                     '', 0, 100, 0)",
+                new { Guid = allianceGuid, AccountId = accountId, Name = AllianceCharName, Money });
+        }
+
+        if (!existingHordeGuid.HasValue)
+        {
+            // Orc Warrior — starts in Valley of Trials (Map 1, Zone 14)
+            await charConn.ExecuteAsync(@"
+                INSERT INTO characters
+                    (guid, account, name, race, class, gender, level, money,
+                     map, zone, position_x, position_y, position_z, orientation,
+                     taximask, innTriggerId, health, power1)
+                VALUES
+                    (@Guid, @AccountId, @Name, 2, 1, 0, 1, @Money,
+                     1, 14, -618.518, -4251.67, 38.718, 0,
+                     '', 0, 100, 0)",
+                new { Guid = hordeGuid, AccountId = accountId, Name = HordeCharName, Money });
+        }
+
+        _logger.LogInformation("AH Bot characters created for stack {StackId}: Alliance GUID={AllianceGuid}, Horde GUID={HordeGuid}",
+            stackId, allianceGuid, hordeGuid);
+
+        return new AhBotSetupResultDto(accountId, allianceGuid, hordeGuid, CharactersCreated: true);
     }
 
     #endregion
