@@ -25,7 +25,7 @@ export function ModulesStep({ form }: ModulesStepProps) {
 
   // Module-specific env var defaults to inject when a module is toggled on
   const MODULE_ENV_DEFAULTS: Record<string, Record<string, string>> = {
-    'mod-ah-bot': { AC_AUCTION_HOUSE_BOT_GUIDS: '' },
+    'mod-ah-bot': { AC_AHBOT_GUIDS: '' },
   }
 
   const toggle = (id: string) => {
