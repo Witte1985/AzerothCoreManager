@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, BotMessageSquare, CheckCircle2, Loader2, Copy, ShieldAlert, Eye, EyeOff } from 'lucide-react'
 import { charactersApi, stackApi } from '@/services/api'
 import { stackKeys } from '@/hooks/useStacks'
