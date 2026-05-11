@@ -147,6 +147,19 @@ export interface StackDetailsDto {
   adminAccountInitializedAt?: string
 }
 
+export interface SoapCredentialsDto {
+  username: string
+  password: string
+}
+
+export interface InitializeAdminResponseDto {
+  success: boolean
+  created: boolean
+  message: string
+  username?: string
+  password?: string
+}
+
 export interface StackListDto {
   stackId: string
   stackName: string

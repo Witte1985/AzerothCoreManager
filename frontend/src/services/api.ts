@@ -9,6 +9,8 @@ import type {
   StackUpdateStatusDto,
   DiscoveredStackDto,
   ImportStackRequestDto,
+  SoapCredentialsDto,
+  InitializeAdminResponseDto,
 } from '@/types/stack.types'
 import type { ModuleConfigSchema } from '@/types/moduleConfig'
 
@@ -68,7 +70,11 @@ export const stackApi = {
   
   // Admin account initialization
   initializeAdmin: (stackId: string) =>
-    apiClient.post<{ success: boolean; created: boolean; message: string }>(`/stacks/${stackId}/initialize-admin`),
+    apiClient.post<InitializeAdminResponseDto>(`/stacks/${stackId}/initialize-admin`),
+
+  // SOAP credentials recovery
+  getSoapCredentials: (stackId: string) =>
+    apiClient.get<SoapCredentialsDto>(`/stacks/${stackId}/soap-credentials`),
 
   // Module configuration (post-setup env var overrides)
   applyModuleConfig: (stackId: string, envVars: Record<string, string>) =>

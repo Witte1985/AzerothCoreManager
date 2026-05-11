@@ -9,6 +9,7 @@ import UpdateStackDialog from '@/components/UpdateStackDialog'
 import AccountsTab from '@/components/accounts/AccountsTab'
 import ModuleSetupWarnings from '@/components/modules/ModuleSetupWarnings'
 import { CiBuildStatusBadge } from '@/components/CiBuildStatusBadge'
+import { Eye, EyeOff, Copy } from 'lucide-react'
 
 // Helper to format commit SHAs safely
 const formatSha = (sha?: string | null): string => {
@@ -41,6 +42,8 @@ export default function StackDetailsPage() {
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
   const [recentLifecycleAction, setRecentLifecycleAction] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'logs'>('overview')
+  const [soapCredsVisible, setSoapCredsVisible] = useState(false)
+  const [soapCopied, setSoapCopied] = useState<'username' | 'password' | null>(null)
 
   // Fetch stack details with auto-refresh every 5 seconds
   // Poll when: Running, Starting, Building, Degraded, Initializing, or within 30 seconds of a lifecycle action
@@ -165,20 +168,11 @@ export default function StackDetailsPage() {
     },
   })
 
-  const initializeAdminMutation = useMutation({
-    mutationFn: () => stackApi.initializeAdmin(stackId!),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: stackKeys.detail(stackId!) })
-      if (data.data.created) {
-        alert('Admin account created successfully!')
-      } else {
-        alert('Admin account was already initialized')
-      }
-    },
-    onError: (error: any) => {
-      const message = error.response?.data?.error || 'Failed to initialize admin account'
-      alert(`Error: ${message}`)
-    },
+  const soapCredentialsQuery = useQuery({
+    queryKey: [...stackKeys.detail(stackId!), 'soap-credentials'],
+    queryFn: () => stackApi.getSoapCredentials(stackId!),
+    enabled: !!stackId && !!stack?.isAdminAccountInitialized,
+    select: (res) => res.data,
   })
 
   if (isLoading) {
@@ -248,7 +242,6 @@ export default function StackDetailsPage() {
   const canStart = stack.status === StackStatus.Stopped || stack.status === StackStatus.Failed
   const canStop = stack.status === StackStatus.Running || stack.status === StackStatus.Starting || stack.status === StackStatus.Degraded || stack.status === StackStatus.Initializing
   const canRestart = stack.status === StackStatus.Running || stack.status === StackStatus.Degraded
-  const canInitializeAdmin = stack.status === StackStatus.Running && !stack.isAdminAccountInitialized
   const isTransitioning = startMutation.isPending || stopMutation.isPending || restartMutation.isPending
 
   return (
@@ -308,24 +301,6 @@ export default function StackDetailsPage() {
           >
             {restartMutation.isPending ? 'Restarting...' : 'Restart'}
           </button>
-          
-          {/* Initialize Admin Account button */}
-          {canInitializeAdmin && (
-            <button
-              onClick={() => initializeAdminMutation.mutate()}
-              disabled={initializeAdminMutation.isPending}
-              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-              title="Create SOAP admin account for account management"
-            >
-              {initializeAdminMutation.isPending ? 'Initializing...' : 'Initialize SOAP Admin'}
-            </button>
-          )}
-          
-          {stack.isAdminAccountInitialized && (
-            <span className="px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded text-sm font-medium" title={`Initialized: ${stack.adminAccountInitializedAt ? new Date(stack.adminAccountInitializedAt).toLocaleString() : 'unknown'}`}>
-              ✓ SOAP Admin Ready
-            </span>
-          )}
           
           <div className="flex-1"></div>
           <button
@@ -618,6 +593,62 @@ export default function StackDetailsPage() {
               </div>
             </div>
           </div>
+
+          {/* SOAP Credentials Recovery */}
+          {stack.isAdminAccountInitialized && (
+            <div>
+              <h3 className="font-medium text-gray-900 mb-2">SOAP Admin Credentials</h3>
+              <div className="space-y-2 text-sm">
+                {soapCredentialsQuery.data ? (
+                  <>
+                    <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                      <span className="text-gray-500 w-20 shrink-0">Username</span>
+                      <code className="flex-1 font-mono text-gray-900">{soapCredentialsQuery.data.username}</code>
+                      <button
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(soapCredentialsQuery.data!.username)
+                          setSoapCopied('username')
+                          setTimeout(() => setSoapCopied(null), 2000)
+                        }}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Copy username"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      {soapCopied === 'username' && <span className="text-xs text-green-600">Copied!</span>}
+                    </div>
+                    <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                      <span className="text-gray-500 w-20 shrink-0">Password</span>
+                      <code className="flex-1 font-mono text-gray-900 break-all">
+                        {soapCredsVisible ? soapCredentialsQuery.data.password : '•'.repeat(32)}
+                      </code>
+                      <button
+                        onClick={() => setSoapCredsVisible(v => !v)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        title={soapCredsVisible ? 'Hide password' : 'Reveal password'}
+                      >
+                        {soapCredsVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(soapCredentialsQuery.data!.password)
+                          setSoapCopied('password')
+                          setTimeout(() => setSoapCopied(null), 2000)
+                        }}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Copy password"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      {soapCopied === 'password' && <span className="text-xs text-green-600">Copied!</span>}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-gray-500 text-sm italic">Loading credentials…</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Modules */}
           <div>

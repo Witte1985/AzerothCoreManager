@@ -38,10 +38,20 @@ public interface IStackService
         CancellationToken cancellationToken = default);
     
     Task<bool> ApplyModuleConfigAsync(string stackId, Dictionary<string, string> envVars, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Initialize the SOAP admin account for a stack by inserting it directly into the auth database.
+    /// </summary>
     /// <param name="stackId">Stack identifier</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>True if account was created successfully, false if already initialized</returns>
+    /// <returns>Credentials if account was freshly created, null if already initialized</returns>
     /// <exception cref="StackNotFoundException">Stack not found</exception>
-    /// <exception cref="InvalidOperationException">Stack is not running or worldserver not accessible</exception>
-    Task<bool> InitializeAdminAccountAsync(string stackId, CancellationToken cancellationToken = default);
+    /// <exception cref="InvalidOperationException">Stack is not running or database not accessible</exception>
+    Task<SoapCredentialsDto?> InitializeAdminAccountAsync(string stackId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieve stored SOAP admin credentials for a stack (for recovery purposes).
+    /// </summary>
+    /// <returns>Credentials or null if the stack does not exist</returns>
+    Task<SoapCredentialsDto?> GetSoapCredentialsAsync(string stackId, CancellationToken cancellationToken = default);
 }

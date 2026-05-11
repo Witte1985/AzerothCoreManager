@@ -324,8 +324,18 @@ public class StacksController : ControllerBase
     {
         try
         {
-            var created = await _stackService.InitializeAdminAccountAsync(stackId, cancellationToken);
-            return Ok(new { success = true, created, message = created ? "Admin account created successfully" : "Admin account already initialized" });
+            var credentials = await _stackService.InitializeAdminAccountAsync(stackId, cancellationToken);
+            if (credentials is null)
+                return Ok(new { success = true, created = false, message = "Admin account already initialized" });
+
+            return Ok(new
+            {
+                success = true,
+                created = true,
+                message = "Admin account created successfully",
+                username = credentials.Username,
+                password = credentials.Password
+            });
         }
         catch (StackNotFoundException ex)
         {
@@ -335,6 +345,18 @@ public class StacksController : ControllerBase
         {
             return BadRequest(new { success = false, error = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Retrieve stored SOAP admin credentials for credential recovery.
+    /// </summary>
+    [HttpGet("{stackId}/soap-credentials")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetSoapCredentials(string stackId, CancellationToken cancellationToken)
+    {
+        var credentials = await _stackService.GetSoapCredentialsAsync(stackId, cancellationToken);
+        return credentials is null ? NotFound() : Ok(credentials);
     }
 
     /// <summary>

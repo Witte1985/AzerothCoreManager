@@ -73,9 +73,10 @@ public sealed class StackService : IStackService
 
     public async Task<StackDetailsDto> CreateAsync(StackConfigurationDto configuration, CancellationToken cancellationToken = default)
     {
+        var stackId = Guid.NewGuid().ToString("N");
         var stack = new ManagedStackEntity
         {
-            Id = Guid.NewGuid().ToString("N"),
+            Id = stackId,
             StackName = configuration.StackName.Trim(),
             NormalizedStackName = NormalizeStackName(configuration.StackName),
             ServerType = configuration.ServerType,
@@ -89,8 +90,8 @@ public sealed class StackService : IStackService
             MaxPlayers = configuration.Advanced.MaxPlayers,
             RealmName = configuration.Advanced.RealmName.Trim(),
             CustomEnvVarsJson = JsonSerializer.Serialize(configuration.Advanced.CustomEnvVars, JsonOptions),
-            SoapUsername = configuration.Advanced.SoapUsername,
-            SoapPassword = configuration.Advanced.SoapPassword,
+            SoapUsername = GenerateSoapUsername(stackId),
+            SoapPassword = GenerateSecureSoapPassword(),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -133,8 +134,6 @@ public sealed class StackService : IStackService
         stack.MaxPlayers = configuration.Advanced.MaxPlayers;
         stack.RealmName = configuration.Advanced.RealmName.Trim();
         stack.CustomEnvVarsJson = JsonSerializer.Serialize(configuration.Advanced.CustomEnvVars, JsonOptions);
-        stack.SoapUsername = configuration.Advanced.SoapUsername;
-        stack.SoapPassword = configuration.Advanced.SoapPassword;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -463,9 +462,7 @@ public sealed class StackService : IStackService
                 {
                     MaxPlayers = stack.MaxPlayers,
                     RealmName = stack.RealmName,
-                    CustomEnvVars = Deserialize<Dictionary<string, string>>(stack.CustomEnvVarsJson) ?? new Dictionary<string, string>(),
-                    SoapUsername = stack.SoapUsername,
-                    SoapPassword = stack.SoapPassword
+                    CustomEnvVars = Deserialize<Dictionary<string, string>>(stack.CustomEnvVarsJson) ?? new Dictionary<string, string>()
                 }
             },
             UpdateStatus = updateStatus,
@@ -974,10 +971,8 @@ public sealed class StackService : IStackService
             DatabaseRootPassword = request.DatabaseRootPassword 
                 ?? discovered.DiscoveredDatabasePassword 
                 ?? GenerateSecurePassword(),
-            SoapUsername = discovered.DiscoveredSoapUsername ?? request.SoapUsername ?? "admin",
-            SoapPassword = request.SoapPassword 
-                ?? discovered.DiscoveredSoapPassword 
-                ?? "admin",
+            SoapUsername = discovered.DiscoveredSoapUsername ?? GenerateSoapUsername(stackId),
+            SoapPassword = discovered.DiscoveredSoapPassword ?? GenerateSecureSoapPassword(),
             
             // Defaults
             MaxPlayers = 100,
@@ -1006,7 +1001,7 @@ public sealed class StackService : IStackService
         };
     }
 
-    public async Task<bool> InitializeAdminAccountAsync(string stackId, CancellationToken cancellationToken = default)
+    public async Task<SoapCredentialsDto?> InitializeAdminAccountAsync(string stackId, CancellationToken cancellationToken = default)
     {
         var stack = await _dbContext.ManagedStacks
             .SingleOrDefaultAsync(s => s.Id == stackId, cancellationToken);
@@ -1020,7 +1015,7 @@ public sealed class StackService : IStackService
         if (stack.IsAdminAccountInitialized)
         {
             _logger.LogInformation("Admin account for stack {StackId} already initialized", stackId);
-            return false;
+            return null;
         }
 
         // Verify stack is running
@@ -1046,8 +1041,7 @@ public sealed class StackService : IStackService
             throw new InvalidOperationException($"Database container is not running (status: {databaseContainer.Status})");
         }
 
-        // Create admin account with SRP6 credentials
-        var username = "admin";
+        var username = stack.SoapUsername;
         var password = stack.SoapPassword;
         
         _logger.LogInformation("Creating admin account for stack {StackId} with SRP6 credentials", stackId);
@@ -1113,12 +1107,54 @@ public sealed class StackService : IStackService
             stack.AdminAccountInitializedAt = DateTime.UtcNow;
             await _dbContext.SaveChangesAsync(cancellationToken);
 
-            return true;
+            // Write credentials file to stack directory as secondary backup
+            WriteCredentialsFile(stackId, stack.StackName, username, password);
+
+            return new SoapCredentialsDto { Username = username, Password = password };
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
             _logger.LogError(ex, "Error creating admin account for stack {StackId}", stackId);
             throw new InvalidOperationException($"Failed to create admin account: {ex.Message}", ex);
+        }
+    }
+
+    public async Task<SoapCredentialsDto?> GetSoapCredentialsAsync(string stackId, CancellationToken cancellationToken = default)
+    {
+        var stack = await _dbContext.ManagedStacks
+            .AsNoTracking()
+            .SingleOrDefaultAsync(s => s.Id == stackId, cancellationToken);
+
+        if (stack is null) return null;
+
+        return new SoapCredentialsDto { Username = stack.SoapUsername, Password = stack.SoapPassword };
+    }
+
+    private void WriteCredentialsFile(string stackId, string stackName, string username, string password)
+    {
+        try
+        {
+            var stackPath = GetStackPath(stackId);
+            Directory.CreateDirectory(stackPath);
+            var filePath = Path.Combine(stackPath, "soap-credentials.txt");
+            var content = $"""
+                # AzerothCore Manager — SOAP Admin Credentials
+                # Stack: {stackName} ({stackId})
+                # Created: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC
+                #
+                # WARNING: Keep this file secure. Anyone with these credentials can
+                # run admin commands on your AzerothCore server via the SOAP interface.
+
+                Username: {username}
+                Password: {password}
+                """;
+            File.WriteAllText(filePath, content);
+            _logger.LogInformation("Wrote SOAP credentials backup to {FilePath}", filePath);
+        }
+        catch (Exception ex)
+        {
+            // Non-fatal: credentials are already persisted in the database
+            _logger.LogWarning(ex, "Failed to write SOAP credentials file for stack {StackId}", stackId);
         }
     }
     
@@ -1174,6 +1210,20 @@ public sealed class StackService : IStackService
         
         return new string(password);
     }
+
+    /// <summary>Generates a secure alphanumeric-only password for SOAP credentials.</summary>
+    private static string GenerateSecureSoapPassword(int length = 32)
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        var password = new char[length];
+        for (int i = 0; i < length; i++)
+            password[i] = chars[RandomNumberGenerator.GetInt32(chars.Length)];
+        return new string(password);
+    }
+
+    /// <summary>Generates a unique SOAP username derived from the stack ID.</summary>
+    private static string GenerateSoapUsername(string stackId)
+        => $"acmgr_{stackId[..Math.Min(8, stackId.Length)]}";
 
     public async Task<bool> ApplyModuleConfigAsync(string stackId, Dictionary<string, string> envVars, CancellationToken cancellationToken = default)
     {
