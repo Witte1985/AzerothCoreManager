@@ -44,6 +44,8 @@ export default function StackDetailsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'logs'>('overview')
   const [soapCredsVisible, setSoapCredsVisible] = useState(false)
   const [soapCopied, setSoapCopied] = useState<'username' | 'password' | null>(null)
+  const [dbCredsVisible, setDbCredsVisible] = useState(false)
+  const [dbCopied, setDbCopied] = useState<'host' | 'port' | 'user' | 'password' | null>(null)
 
   // Fetch stack details with auto-refresh every 5 seconds
   // Poll when: Running, Starting, Building, Degraded, Initializing, or within 30 seconds of a lifecycle action
@@ -549,21 +551,10 @@ export default function StackDetailsPage() {
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Configuration</h2>
         <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
-          {/* Database */}
-          <div>
-            <h3 className="font-medium text-gray-900 mb-2">Database</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500">Port:</span>
-                <span className="ml-2 font-mono text-gray-900">{stack.configuration.database.port}</span>
-              </div>
-            </div>
-          </div>
-
           {/* Ports */}
           <div>
             <h3 className="font-medium text-gray-900 mb-2">Server Ports</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-gray-500">Auth Server:</span>
                 <span className="ml-2 font-mono text-gray-900">{stack.configuration.ports.authServer}</span>
@@ -575,6 +566,10 @@ export default function StackDetailsPage() {
               <div>
                 <span className="text-gray-500">SOAP:</span>
                 <span className="ml-2 font-mono text-gray-900">{stack.configuration.ports.soapPort}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Database:</span>
+                <span className="ml-2 font-mono text-gray-900">{stack.configuration.database.port}</span>
               </div>
             </div>
           </div>
@@ -649,6 +644,60 @@ export default function StackDetailsPage() {
               </div>
             </div>
           )}
+
+          {/* Database Credentials */}
+          <div>
+            <h3 className="font-medium text-gray-900 mb-2">Database Credentials</h3>
+            <div className="space-y-2 text-sm">
+              {[
+                { label: 'Host', value: 'localhost', key: 'host' as const },
+                { label: 'Port', value: String(stack.configuration.database.port), key: 'port' as const },
+                { label: 'User', value: 'root', key: 'user' as const },
+              ].map(({ label, value, key }) => (
+                <div key={key} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                  <span className="text-gray-500 w-20 shrink-0">{label}</span>
+                  <code className="flex-1 font-mono text-gray-900">{value}</code>
+                  <button
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(value)
+                      setDbCopied(key)
+                      setTimeout(() => setDbCopied(null), 2000)
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    title={`Copy ${label.toLowerCase()}`}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                  {dbCopied === key && <span className="text-xs text-green-600">Copied!</span>}
+                </div>
+              ))}
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                <span className="text-gray-500 w-20 shrink-0">Password</span>
+                <code className="flex-1 font-mono text-gray-900 break-all">
+                  {dbCredsVisible ? stack.configuration.database.rootPassword : '•'.repeat(32)}
+                </code>
+                <button
+                  onClick={() => setDbCredsVisible(v => !v)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  title={dbCredsVisible ? 'Hide password' : 'Reveal password'}
+                >
+                  {dbCredsVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(stack.configuration.database.rootPassword)
+                    setDbCopied('password')
+                    setTimeout(() => setDbCopied(null), 2000)
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Copy password"
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+                {dbCopied === 'password' && <span className="text-xs text-green-600">Copied!</span>}
+              </div>
+            </div>
+          </div>
 
           {/* Modules */}
           <div>
