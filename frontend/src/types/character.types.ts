@@ -7,7 +7,7 @@ export interface ItemSlotDto {
   itemEntry: number
   itemName: string
   displayId: number
-  /** 0=Poor 1=Common 2=Uncommon 3=Rare 4=Epic 5=Legendary 6=Artifact */
+  /** 0=Poor 1=Common 2=Uncommon 3=Rare 4=Epic 5=Legendary 6=Artifact 7=Heirloom */
   quality: number
   itemLevel: number
   requiredLevel: number
@@ -58,12 +58,13 @@ export const EQUIPMENT_SLOT_LABELS: Record<number, string> = {
 /** Item quality → TailwindCSS text colour class */
 export const QUALITY_COLORS: Record<number, string> = {
   0: 'text-gray-400',
-  1: 'text-white',
+  1: 'text-gray-700',
   2: 'text-green-400',
   3: 'text-blue-400',
   4: 'text-purple-400',
   5: 'text-orange-400',
   6: 'text-red-400',
+  7: 'text-cyan-400',
 }
 
 /** Item quality → label */
@@ -75,4 +76,5 @@ export const QUALITY_LABELS: Record<number, string> = {
   4: 'Epic',
   5: 'Legendary',
   6: 'Artifact',
+  7: 'Heirloom',
 }
