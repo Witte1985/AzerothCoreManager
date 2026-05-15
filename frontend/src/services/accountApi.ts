@@ -13,9 +13,16 @@ import type {
   SendItemsRequest,
   SendMoneyRequest,
   SetLevelRequest,
+  BanCharacterRequest,
+  MuteCharacterRequest,
+  ModifyMoneyRequest,
+  AddHonorRequest,
+  AddArenaPointsRequest,
+  AddItemRequest,
   AccountActionResponse,
   CharacterActionResponse,
 } from '@/types/account.types'
+import type { CharacterInventoryDto } from '@/types/character.types'
 
 // Account API
 export const accountApi = {
@@ -115,4 +122,56 @@ export const characterApi = {
       `/stacks/${stackId}/characters/${characterName}/set-level`,
       request
     ),
+
+  // Get full inventory (equipment, bags, bank) by character GUID
+  getInventory: (stackId: string, characterGuid: number) =>
+    apiClient.get<CharacterInventoryDto>(`/stacks/${stackId}/characters/${characterGuid}/inventory`),
+
+  // Get all characters for the stack
+  getAll: (stackId: string) =>
+    apiClient.get<CharacterDto[]>(`/stacks/${stackId}/characters`),
+
+  // Ban character
+  ban: (stackId: string, characterName: string, request: BanCharacterRequest) =>
+    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/ban`, request),
+
+  // Unban character
+  unban: (stackId: string, characterName: string) =>
+    apiClient.delete<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/ban`),
+
+  // Mute character
+  mute: (stackId: string, characterName: string, request: MuteCharacterRequest) =>
+    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/mute`, request),
+
+  // Freeze character
+  freeze: (stackId: string, characterName: string) =>
+    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/freeze`),
+
+  // Revive character
+  revive: (stackId: string, characterName: string) =>
+    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/revive`),
+
+  // Repair all gear
+  repairGear: (stackId: string, characterName: string) =>
+    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/repair-gear`),
+
+  // Max all skills
+  maxSkills: (stackId: string, characterName: string) =>
+    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/max-skills`),
+
+  // Modify gold (positive = add, negative = remove)
+  modifyMoney: (stackId: string, characterName: string, request: ModifyMoneyRequest) =>
+    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/modify-money`, request),
+
+  // Add honor points
+  addHonor: (stackId: string, characterName: string, request: AddHonorRequest) =>
+    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/add-honor`, request),
+
+  // Add arena points
+  addArenaPoints: (stackId: string, characterName: string, request: AddArenaPointsRequest) =>
+    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/add-arena-points`, request),
+
+  // Add item directly to inventory
+  addItem: (stackId: string, characterName: string, request: AddItemRequest) =>
+    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/add-item`, request),
 }

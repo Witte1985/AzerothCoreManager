@@ -27,6 +27,7 @@ export interface CharacterDto {
   accountUsername?: string
   map: number
   zone: number
+  guild?: string
 }
 
 // Request DTOs
@@ -85,6 +86,33 @@ export interface SendMoneyRequest {
 
 export interface SetLevelRequest {
   level: number
+}
+
+export interface BanCharacterRequest {
+  duration: string // e.g. "30m", "7d", "-1" for permanent
+  reason: string
+}
+
+export interface MuteCharacterRequest {
+  minutes: number
+  reason: string
+}
+
+export interface ModifyMoneyRequest {
+  copperAmount: number
+}
+
+export interface AddHonorRequest {
+  amount: number
+}
+
+export interface AddArenaPointsRequest {
+  amount: number
+}
+
+export interface AddItemRequest {
+  itemId: number
+  count: number
 }
 
 // Response DTOs

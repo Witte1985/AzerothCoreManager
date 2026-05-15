@@ -60,22 +60,27 @@ public class AccountManagementService : IAccountManagementService
 
         var sql = @"
             SELECT 
-                guid AS Guid,
-                name AS Name,
-                account AS Account,
-                level AS Level,
-                race AS Race,
-                class AS Class,
-                gender AS Gender,
-                online AS Online,
-                totaltime AS TotalTime,
-                map AS Map,
-                position_x AS PositionX,
-                position_y AS PositionY,
-                position_z AS PositionZ
-            FROM characters 
-            WHERE account = @AccountId
-            ORDER BY level DESC, totaltime DESC";
+                c.guid AS Guid,
+                c.name AS Name,
+                c.account AS Account,
+                c.level AS Level,
+                c.race AS Race,
+                c.class AS Class,
+                c.gender AS Gender,
+                c.online AS Online,
+                c.totaltime AS TotalTime,
+                c.map AS Map,
+                c.zone AS Zone,
+                c.money AS Money,
+                c.position_x AS PositionX,
+                c.position_y AS PositionY,
+                c.position_z AS PositionZ,
+                g.name AS Guild
+            FROM characters c
+            LEFT JOIN guild_member gm ON gm.guid = c.guid
+            LEFT JOIN guild g ON g.guildid = gm.guildid
+            WHERE c.account = @AccountId
+            ORDER BY c.level DESC, c.totaltime DESC";
 
         var characters = await connection.QueryAsync<CharacterDto>(sql, new { AccountId = accountId });
         return characters.ToList();
@@ -98,11 +103,16 @@ public class AccountManagementService : IAccountManagementService
                 c.online AS Online,
                 c.totaltime AS TotalTime,
                 c.map AS Map,
+                c.zone AS Zone,
+                c.money AS Money,
                 c.position_x AS PositionX,
                 c.position_y AS PositionY,
-                c.position_z AS PositionZ
+                c.position_z AS PositionZ,
+                g.name AS Guild
             FROM characters c
             LEFT JOIN acore_auth.account a ON c.account = a.id
+            LEFT JOIN guild_member gm ON gm.guid = c.guid
+            LEFT JOIN guild g ON g.guildid = gm.guildid
             ORDER BY c.name ASC";
 
         var characters = await connection.QueryAsync<CharacterDto>(sql);
@@ -537,8 +547,411 @@ public class AccountManagementService : IAccountManagementService
         }
     }
 
+    public async Task<bool> BanCharacterAsync(string stackId, string characterName, string duration, string reason, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"ban character {characterName} {duration} {reason}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+
+            var success = result.Contains("banned", StringComparison.OrdinalIgnoreCase) ||
+                          result.Contains("ban", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+                _logger.LogInformation("Character {CharacterName} banned on stack {StackId} for {Duration}: {Reason}", characterName, stackId, duration, reason);
+            else
+                _logger.LogWarning("Failed to ban character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error banning character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> UnbanCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"unban character {characterName}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+
+            var success = result.Contains("unbanned", StringComparison.OrdinalIgnoreCase) ||
+                          result.Contains("removed", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+                _logger.LogInformation("Character {CharacterName} unbanned on stack {StackId}", characterName, stackId);
+            else
+                _logger.LogWarning("Failed to unban character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error unbanning character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> MuteCharacterAsync(string stackId, string characterName, int minutes, string reason, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"mute {characterName} {minutes} {reason}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+
+            var success = result.Contains("muted", StringComparison.OrdinalIgnoreCase) ||
+                          result.Contains("mute", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+                _logger.LogInformation("Character {CharacterName} muted for {Minutes}m on stack {StackId}: {Reason}", characterName, minutes, stackId, reason);
+            else
+                _logger.LogWarning("Failed to mute character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error muting character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> FreezeCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"freeze {characterName}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+
+            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+                _logger.LogInformation("Character {CharacterName} frozen on stack {StackId}", characterName, stackId);
+            else
+                _logger.LogWarning("Failed to freeze character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error freezing character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> ReviveCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"revive {characterName}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+
+            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+                _logger.LogInformation("Character {CharacterName} revived on stack {StackId}", characterName, stackId);
+            else
+                _logger.LogWarning("Failed to revive character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error reviving character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> RepairGearAsync(string stackId, string characterName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // gear repair requires the player to be the selected target in-game.
+            // Via SOAP we use the character name prefix approach that some commands support.
+            var command = $"gear repair {characterName}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+
+            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+                _logger.LogInformation("Gear repaired for character {CharacterName} on stack {StackId}", characterName, stackId);
+            else
+                _logger.LogWarning("Failed to repair gear for character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error repairing gear for character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> MaxSkillsAsync(string stackId, string characterName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"maxskill {characterName}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+
+            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+                _logger.LogInformation("Skills maxed for character {CharacterName} on stack {StackId}", characterName, stackId);
+            else
+                _logger.LogWarning("Failed to max skills for character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error maxing skills for character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> ModifyMoneyAsync(string stackId, string characterName, long copperAmount, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"modify money {characterName} {copperAmount}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+
+            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+                _logger.LogInformation("Money modified by {Amount} copper for character {CharacterName} on stack {StackId}", copperAmount, characterName, stackId);
+            else
+                _logger.LogWarning("Failed to modify money for character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error modifying money for character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> AddHonorAsync(string stackId, string characterName, int amount, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"honor add {characterName} {amount}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+
+            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+                _logger.LogInformation("Added {Amount} honor to character {CharacterName} on stack {StackId}", amount, characterName, stackId);
+            else
+                _logger.LogWarning("Failed to add honor to character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding honor to character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> AddArenaPointsAsync(string stackId, string characterName, int amount, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"modify arenapoints {characterName} {amount}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+
+            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+                _logger.LogInformation("Added {Amount} arena points to character {CharacterName} on stack {StackId}", amount, characterName, stackId);
+            else
+                _logger.LogWarning("Failed to add arena points to character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding arena points to character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
+    public async Task<bool> AddItemAsync(string stackId, string characterName, int itemId, int count, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = $"additem {characterName} {itemId} {count}";
+            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
+
+            var success = result.Contains("added", StringComparison.OrdinalIgnoreCase) ||
+                          result.Contains("item", StringComparison.OrdinalIgnoreCase);
+
+            if (success)
+                _logger.LogInformation("Added item {ItemId}x{Count} to character {CharacterName} on stack {StackId}", itemId, count, characterName, stackId);
+            else
+                _logger.LogWarning("Failed to add item to character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding item to character {CharacterName} on stack {StackId}", characterName, stackId);
+            return false;
+        }
+    }
+
     #endregion
     
+    #region Character Inventory (MySQL)
+
+    public async Task<CharacterInventoryDto> GetCharacterInventoryAsync(string stackId, int characterGuid, CancellationToken cancellationToken = default)
+    {
+        using var connection = await _connectionFactory.CreateConnectionAsync(stackId, "characters", cancellationToken);
+
+        // Query all item_instance rows for this character, joined to item_template for display data.
+        // bag = 0 means item is directly on the character. For bag items, bag = the item_guid of the container.
+        var sql = @"
+            SELECT
+                ci.bag       AS Bag,
+                ci.slot      AS Slot,
+                ci.item      AS ItemGuid,
+                ii.itemEntry AS ItemEntry,
+                it.name      AS ItemName,
+                it.displayid AS DisplayId,
+                it.Quality   AS Quality,
+                it.ItemLevel AS ItemLevel,
+                it.RequiredLevel AS RequiredLevel,
+                ii.count     AS StackCount,
+                ii.durability    AS Durability,
+                it.MaxDurability AS MaxDurability
+            FROM character_inventory ci
+            INNER JOIN item_instance ii ON ii.guid = ci.item
+            INNER JOIN acore_world.item_template it ON it.entry = ii.itemEntry
+            WHERE ci.guid = @CharacterGuid
+            ORDER BY ci.bag ASC, ci.slot ASC";
+
+        var rawItems = (await connection.QueryAsync<RawInventoryRow>(sql, new { CharacterGuid = characterGuid })).ToList();
+
+        var result = new CharacterInventoryDto();
+
+        // Build a lookup of container guids → ContainerSlot (slots 19–22 and 67–74 on bag=0)
+        var containersByGuid = rawItems
+            .Where(r => r.Bag == 0 && r.Slot >= 19 && r.Slot <= 22)
+            .ToDictionary(r => r.ItemGuid, r => r);
+
+        var bankContainersByGuid = rawItems
+            .Where(r => r.Bag == 0 && r.Slot >= 67 && r.Slot <= 74)
+            .ToDictionary(r => r.ItemGuid, r => r);
+
+        foreach (var row in rawItems)
+        {
+            var slot = MapRow(row);
+
+            if (row.Bag == 0)
+            {
+                if (row.Slot <= 18)
+                    result.EquippedItems.Add(slot);
+                else if (row.Slot >= 19 && row.Slot <= 22)
+                    EnsureBag(result.BagItems, row, slot);   // container itself — will be created by EnsureBag
+                else if (row.Slot >= 23 && row.Slot <= 38)
+                    result.BackpackItems.Add(slot);
+                else if (row.Slot >= 39 && row.Slot <= 66)
+                    result.BankItems.Add(slot);
+                else if (row.Slot >= 67 && row.Slot <= 74)
+                    EnsureBankBag(result.BankBagItems, row, slot);
+            }
+            else if (containersByGuid.TryGetValue(row.Bag, out var containerRow))
+            {
+                var bag = result.BagItems.FirstOrDefault(b => b.ContainerGuid == row.Bag);
+                bag?.Items.Add(slot);
+            }
+            else if (bankContainersByGuid.TryGetValue(row.Bag, out var bankContainerRow))
+            {
+                var bag = result.BankBagItems.FirstOrDefault(b => b.ContainerGuid == row.Bag);
+                bag?.Items.Add(slot);
+            }
+        }
+
+        return result;
+    }
+
+    private static ItemSlotDto MapRow(RawInventoryRow row) => new()
+    {
+        Bag = row.Bag,
+        Slot = row.Slot,
+        ItemGuid = row.ItemGuid,
+        ItemEntry = row.ItemEntry,
+        ItemName = row.ItemName,
+        DisplayId = row.DisplayId,
+        Quality = row.Quality,
+        ItemLevel = row.ItemLevel,
+        RequiredLevel = row.RequiredLevel,
+        StackCount = row.StackCount,
+        Durability = row.Durability,
+        MaxDurability = row.MaxDurability
+    };
+
+    private static void EnsureBag(List<BagDto> bags, RawInventoryRow containerRow, ItemSlotDto slot)
+    {
+        if (!bags.Any(b => b.ContainerGuid == containerRow.ItemGuid))
+        {
+            bags.Add(new BagDto
+            {
+                ContainerSlot = containerRow.Slot,
+                ContainerGuid = containerRow.ItemGuid,
+                ContainerEntry = containerRow.ItemEntry,
+                ContainerName = containerRow.ItemName,
+                Items = []
+            });
+        }
+    }
+
+    private static void EnsureBankBag(List<BagDto> bags, RawInventoryRow containerRow, ItemSlotDto slot)
+    {
+        if (!bags.Any(b => b.ContainerGuid == containerRow.ItemGuid))
+        {
+            bags.Add(new BagDto
+            {
+                ContainerSlot = containerRow.Slot,
+                ContainerGuid = containerRow.ItemGuid,
+                ContainerEntry = containerRow.ItemEntry,
+                ContainerName = containerRow.ItemName,
+                Items = []
+            });
+        }
+    }
+
+    private sealed class RawInventoryRow
+    {
+        public int Bag { get; set; }
+        public int Slot { get; set; }
+        public int ItemGuid { get; set; }
+        public int ItemEntry { get; set; }
+        public string ItemName { get; set; } = string.Empty;
+        public int DisplayId { get; set; }
+        public int Quality { get; set; }
+        public int ItemLevel { get; set; }
+        public int RequiredLevel { get; set; }
+        public int StackCount { get; set; }
+        public int Durability { get; set; }
+        public int MaxDurability { get; set; }
+    }
+
+    #endregion
+
     #region AH Bot Setup
 
     public async Task<AhBotSetupResultDto> CreateAhBotCharactersAsync(string stackId, CancellationToken cancellationToken = default)
