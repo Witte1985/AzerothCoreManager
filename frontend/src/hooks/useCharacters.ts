@@ -127,11 +127,20 @@ export function useAddArenaPoints(stackId: string) {
 export function useAddItem(stackId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ characterName, request }: { characterName: string; request: AddItemRequest }) =>
-      characterApi.addItem(stackId, characterName, request),
+    mutationFn: ({
+      characterGuid,
+      characterName,
+      request,
+    }: {
+      characterGuid: number
+      characterName: string
+      request: AddItemRequest
+    }) => characterApi.addItem(stackId, characterName, request),
     onSuccess: (_data, variables) => {
-      // Find the character guid to invalidate inventory query
       queryClient.invalidateQueries({ queryKey: characterKeys.list(stackId) })
+      queryClient.invalidateQueries({
+        queryKey: characterKeys.inventory(stackId, variables.characterGuid),
+      })
     },
   })
 }
