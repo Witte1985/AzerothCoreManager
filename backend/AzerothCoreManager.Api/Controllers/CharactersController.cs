@@ -369,6 +369,11 @@ public class CharactersController : ControllerBase
         [FromBody] BanCharacterRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Duration))
+            return BadRequest(new { error = "Duration is required (e.g. '30m', '7d', '-1' for permanent)" });
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequest(new { error = "Reason is required" });
+
         try
         {
             var success = await _accountService.BanCharacterAsync(stackId, characterName, request.Duration, request.Reason, cancellationToken);
@@ -410,6 +415,11 @@ public class CharactersController : ControllerBase
         [FromBody] MuteCharacterRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (request.Minutes < 1)
+            return BadRequest(new { error = "Minutes must be at least 1" });
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequest(new { error = "Reason is required" });
+
         try
         {
             var success = await _accountService.MuteCharacterAsync(stackId, characterName, request.Minutes, request.Reason, cancellationToken);
@@ -511,6 +521,9 @@ public class CharactersController : ControllerBase
         [FromBody] ModifyMoneyRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (request.CopperAmount == 0)
+            return BadRequest(new { error = "CopperAmount must be non-zero (positive to add, negative to remove)" });
+
         try
         {
             var success = await _accountService.ModifyMoneyAsync(stackId, characterName, request.CopperAmount, cancellationToken);
@@ -532,6 +545,9 @@ public class CharactersController : ControllerBase
         [FromBody] AddHonorRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (request.Amount <= 0)
+            return BadRequest(new { error = "Amount must be positive" });
+
         try
         {
             var success = await _accountService.AddHonorAsync(stackId, characterName, request.Amount, cancellationToken);
@@ -553,6 +569,9 @@ public class CharactersController : ControllerBase
         [FromBody] AddArenaPointsRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (request.Amount <= 0)
+            return BadRequest(new { error = "Amount must be positive" });
+
         try
         {
             var success = await _accountService.AddArenaPointsAsync(stackId, characterName, request.Amount, cancellationToken);

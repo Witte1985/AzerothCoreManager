@@ -20,9 +20,11 @@ interface CharactersTabProps {
   stackId: string
   /** If provided, the Characters tab opens pre-filtered to this account */
   accountId?: number
+  /** Optional className to control container sizing (defaults to viewport-based height) */
+  className?: string
 }
 
-export default function CharactersTab({ stackId, accountId }: CharactersTabProps) {
+export default function CharactersTab({ stackId, accountId, className }: CharactersTabProps) {
   const { data: characters, isLoading, error, refetch } = useAllCharacters(stackId)
   const [search, setSearch] = useState('')
   const [factionFilter, setFactionFilter] = useState<'all' | 'alliance' | 'horde'>('all')
@@ -69,7 +71,7 @@ export default function CharactersTab({ stackId, accountId }: CharactersTabProps
   const onlineCount = (characters ?? []).filter(c => c.online).length
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-220px)] min-h-[500px]">
+    <div className={className ?? "flex gap-4 h-[calc(100vh-220px)] min-h-[500px]"}>
       {/* Left: Character List */}
       <div className="w-72 shrink-0 flex flex-col">
         {/* Toolbar */}

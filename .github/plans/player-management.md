@@ -36,9 +36,9 @@ The following SOAP commands drive all new character actions:
 | Kill player | `die` (target-based; use with character name) |
 | Repair gear | `gear repair` (targeted — use `.gear repair` via SOAP with character in target) |
 | Max all skills | `maxskill` |
-| Add/remove money | `modify money {amount}` (negative removes) |
-| Add honor points | `honor add {amount}` |
-| Add arena points | `modify arenapoints {amount}` |
+| Add/remove money | `modify money {characterName} {amount}` (negative removes) |
+| Add honor points | `honor add {characterName} {amount}` |
+| Add arena points | `modify arenapoints {characterName} {amount}` |
 | Add item to inventory | `additem {name} {itemId} {count}` |
 | Set level | `character level {name} {level}` *(already exists)* |
 | Force rename | `character rename {name}` *(already exists)* |
