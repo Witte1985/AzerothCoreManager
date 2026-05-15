@@ -176,7 +176,7 @@ export default function CharacterDetailPanel({ character, stackId }: CharacterDe
             <InfoRow label="Class" value={CLASSES[character.class] || `Class ${character.class}`} />
             <InfoRow label="Gender" value={GENDERS[character.gender] || 'Unknown'} />
             <InfoRow label="Level" value={character.level.toString()} />
-            <InfoRow label="Playtime" value={formatPlaytime(character.totaltime)} />
+            <InfoRow label="Playtime" value={formatPlaytime(character.totalTime)} />
             <InfoRow label="Guild" value={character.guild || '—'} />
             <InfoRow label="Zone" value={character.zone?.toString() || '—'} />
             <InfoRow label="Map" value={character.map?.toString() || '—'} />
