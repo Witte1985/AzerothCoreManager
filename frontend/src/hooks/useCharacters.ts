@@ -1,0 +1,146 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { characterApi } from '@/services/accountApi'
+import type {
+  BanCharacterRequest,
+  MuteCharacterRequest,
+  ModifyMoneyRequest,
+  AddHonorRequest,
+  AddArenaPointsRequest,
+  AddItemRequest,
+} from '@/types/account.types'
+
+export const characterKeys = {
+  all: ['characters'] as const,
+  lists: () => [...characterKeys.all, 'list'] as const,
+  list: (stackId: string) => [...characterKeys.lists(), stackId] as const,
+  inventory: (stackId: string, characterGuid: number) =>
+    [...characterKeys.all, 'inventory', stackId, characterGuid] as const,
+}
+
+// All characters for a stack
+export function useAllCharacters(stackId: string) {
+  return useQuery({
+    queryKey: characterKeys.list(stackId),
+    queryFn: async () => {
+      const response = await characterApi.getAll(stackId)
+      return response.data
+    },
+    enabled: !!stackId,
+    refetchInterval: 10_000,
+  })
+}
+
+// Character inventory
+export function useCharacterInventory(stackId: string, characterGuid: number | null) {
+  return useQuery({
+    queryKey: characterKeys.inventory(stackId, characterGuid ?? 0),
+    queryFn: async () => {
+      const response = await characterApi.getInventory(stackId, characterGuid!)
+      return response.data
+    },
+    enabled: !!stackId && !!characterGuid,
+  })
+}
+
+// Ban character
+export function useBanCharacter(stackId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ characterName, request }: { characterName: string; request: BanCharacterRequest }) =>
+      characterApi.ban(stackId, characterName, request),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: characterKeys.list(stackId) }),
+  })
+}
+
+// Unban character
+export function useUnbanCharacter(stackId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (characterName: string) => characterApi.unban(stackId, characterName),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: characterKeys.list(stackId) }),
+  })
+}
+
+// Mute character
+export function useMuteCharacter(stackId: string) {
+  return useMutation({
+    mutationFn: ({ characterName, request }: { characterName: string; request: MuteCharacterRequest }) =>
+      characterApi.mute(stackId, characterName, request),
+  })
+}
+
+// Freeze character
+export function useFreezeCharacter(stackId: string) {
+  return useMutation({
+    mutationFn: (characterName: string) => characterApi.freeze(stackId, characterName),
+  })
+}
+
+// Revive character
+export function useReviveCharacter(stackId: string) {
+  return useMutation({
+    mutationFn: (characterName: string) => characterApi.revive(stackId, characterName),
+  })
+}
+
+// Repair gear
+export function useRepairGear(stackId: string) {
+  return useMutation({
+    mutationFn: (characterName: string) => characterApi.repairGear(stackId, characterName),
+  })
+}
+
+// Max skills
+export function useMaxSkills(stackId: string) {
+  return useMutation({
+    mutationFn: (characterName: string) => characterApi.maxSkills(stackId, characterName),
+  })
+}
+
+// Modify money
+export function useModifyMoney(stackId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ characterName, request }: { characterName: string; request: ModifyMoneyRequest }) =>
+      characterApi.modifyMoney(stackId, characterName, request),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: characterKeys.list(stackId) }),
+  })
+}
+
+// Add honor
+export function useAddHonor(stackId: string) {
+  return useMutation({
+    mutationFn: ({ characterName, request }: { characterName: string; request: AddHonorRequest }) =>
+      characterApi.addHonor(stackId, characterName, request),
+  })
+}
+
+// Add arena points
+export function useAddArenaPoints(stackId: string) {
+  return useMutation({
+    mutationFn: ({ characterName, request }: { characterName: string; request: AddArenaPointsRequest }) =>
+      characterApi.addArenaPoints(stackId, characterName, request),
+  })
+}
+
+// Add item to inventory
+export function useAddItem(stackId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      characterGuid,
+      characterName,
+      request,
+    }: {
+      characterGuid: number
+      characterName: string
+      request: AddItemRequest
+    }) => characterApi.addItem(stackId, characterName, request),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: characterKeys.list(stackId) })
+      queryClient.invalidateQueries({
+        queryKey: characterKeys.inventory(stackId, variables.characterGuid),
+      })
+    },
+  })
+}

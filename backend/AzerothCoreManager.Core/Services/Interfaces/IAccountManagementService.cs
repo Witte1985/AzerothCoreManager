@@ -12,6 +12,9 @@ public interface IAccountManagementService
     Task<List<CharacterDto>> GetCharactersAsync(string stackId, int accountId, CancellationToken cancellationToken = default);
     Task<List<CharacterDto>> GetAllCharactersAsync(string stackId, CancellationToken cancellationToken = default);
 
+    // Character inventory (MySQL)
+    Task<CharacterInventoryDto> GetCharacterInventoryAsync(string stackId, int characterGuid, CancellationToken cancellationToken = default);
+
     // AH Bot setup (direct DB injection)
     Task<AhBotSetupResultDto> CreateAhBotCharactersAsync(string stackId, CancellationToken cancellationToken = default);
     
@@ -25,7 +28,7 @@ public interface IAccountManagementService
     Task<bool> BanIpAsync(string stackId, string ip, string duration, string reason, CancellationToken cancellationToken = default);
     Task<bool> UnbanIpAsync(string stackId, string ip, CancellationToken cancellationToken = default);
     
-    // Character actions (SOAP)
+    // Character actions (SOAP) — existing
     Task<bool> SendMessageAsync(string stackId, string characterName, string message, CancellationToken cancellationToken = default);
     Task<bool> SendItemsAsync(string stackId, string characterName, int itemId, int count, CancellationToken cancellationToken = default);
     Task<bool> SendMoneyAsync(string stackId, string characterName, long copperAmount, CancellationToken cancellationToken = default);
@@ -33,4 +36,24 @@ public interface IAccountManagementService
     Task<bool> RenameCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
     Task<bool> CustomizeCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
     Task<bool> SetCharacterLevelAsync(string stackId, string characterName, int level, CancellationToken cancellationToken = default);
+
+    // Character moderation (SOAP) — new
+    Task<bool> BanCharacterAsync(string stackId, string characterName, string duration, string reason, CancellationToken cancellationToken = default);
+    Task<bool> UnbanCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
+    Task<bool> MuteCharacterAsync(string stackId, string characterName, int minutes, string reason, CancellationToken cancellationToken = default);
+    Task<bool> FreezeCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
+    Task<bool> ReviveCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
+
+    // Character utility (SOAP) — new
+    Task<bool> RepairGearAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
+    Task<bool> MaxSkillsAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
+
+    // Character economy (SOAP) — new
+    Task<bool> ModifyMoneyAsync(string stackId, string characterName, long copperAmount, CancellationToken cancellationToken = default);
+    Task<bool> AddHonorAsync(string stackId, string characterName, int amount, CancellationToken cancellationToken = default);
+    Task<bool> AddArenaPointsAsync(string stackId, string characterName, int amount, CancellationToken cancellationToken = default);
+
+    // Character items (SOAP) — new
+    Task<bool> AddItemAsync(string stackId, string characterName, int itemId, int count, CancellationToken cancellationToken = default);
 }
+

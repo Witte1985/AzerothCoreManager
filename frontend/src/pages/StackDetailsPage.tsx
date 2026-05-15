@@ -7,6 +7,7 @@ import { stackKeys } from '@/hooks/useStacks'
 import EditStackConfigModal from '@/components/EditStackConfigModal'
 import UpdateStackDialog from '@/components/UpdateStackDialog'
 import AccountsTab from '@/components/accounts/AccountsTab'
+import CharactersTab from '@/components/characters/CharactersTab'
 import ModuleSetupWarnings from '@/components/modules/ModuleSetupWarnings'
 import { CiBuildStatusBadge } from '@/components/CiBuildStatusBadge'
 import { Eye, EyeOff, Copy } from 'lucide-react'
@@ -41,7 +42,7 @@ export default function StackDetailsPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
   const [recentLifecycleAction, setRecentLifecycleAction] = useState<number | null>(null)
-  const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'logs'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'characters' | 'logs'>('overview')
   const [soapCredsVisible, setSoapCredsVisible] = useState(false)
   const [soapCopied, setSoapCopied] = useState<'username' | 'password' | null>(null)
   const [dbCredsVisible, setDbCredsVisible] = useState(false)
@@ -361,6 +362,16 @@ export default function StackDetailsPage() {
             Accounts
           </button>
           <button
+            onClick={() => setActiveTab('characters')}
+            className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'characters'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Characters
+          </button>
+          <button
             onClick={() => setActiveTab('logs')}
             className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeTab === 'logs'
@@ -376,6 +387,10 @@ export default function StackDetailsPage() {
       {/* Tab Content */}
       {activeTab === 'accounts' && (
         <AccountsTab stackId={stackId!} />
+      )}
+
+      {activeTab === 'characters' && (
+        <CharactersTab stackId={stackId!} />
       )}
 
       {activeTab === 'logs' && (

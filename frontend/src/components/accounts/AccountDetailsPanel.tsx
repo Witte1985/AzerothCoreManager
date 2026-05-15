@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Shield, Ban, Trash2, Key, X } from 'lucide-react'
+import { Shield, Ban, Trash2, Key, X, Users } from 'lucide-react'
 import type { AccountDto } from '@/types/account.types'
 import BanAccountDialog from './dialogs/BanAccountDialog'
 import SetPasswordDialog from './dialogs/SetPasswordDialog'
 import DeleteAccountDialog from './dialogs/DeleteAccountDialog'
+import CharactersTab from '@/components/characters/CharactersTab'
 import {
   useSetGmLevel,
   useBanAccount,
@@ -218,11 +219,15 @@ export default function AccountDetailsPanel({ account, stackId, onClose }: Accou
             </div>
           </div>
 
-          {/* Characters - Coming Soon */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
-            <p className="text-gray-600 text-sm">
-              Character details coming soon ({account.characterCount} total)
-            </p>
+          {/* Characters */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Users className="w-4 h-4 text-gray-500" />
+              <h4 className="font-semibold text-gray-700 text-sm">
+                Characters ({account.characterCount})
+              </h4>
+            </div>
+            <CharactersTab stackId={stackId} accountId={account.id} />
           </div>
         </div>
       </div>

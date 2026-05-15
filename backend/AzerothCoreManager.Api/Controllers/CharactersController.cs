@@ -334,4 +334,279 @@ public class CharactersController : ControllerBase
             return StatusCode(500, new { error = $"Failed to set character level: {ex.Message}" });
         }
     }
+
+    /// <summary>
+    /// Get the full inventory (equipment, bags, backpack, bank) for a character by GUID
+    /// </summary>
+    [HttpGet("{characterGuid:int}/inventory")]
+    public async Task<ActionResult<CharacterInventoryDto>> GetInventory(
+        string stackId,
+        int characterGuid,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var inventory = await _accountService.GetCharacterInventoryAsync(stackId, characterGuid, cancellationToken);
+            return Ok(inventory);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = $"Failed to retrieve inventory: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Ban a character
+    /// </summary>
+    [HttpPost("{characterName}/ban")]
+    public async Task<IActionResult> BanCharacter(
+        string stackId,
+        string characterName,
+        [FromBody] BanCharacterRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Duration))
+            return BadRequest(new { error = "Duration is required (e.g. '30m', '7d', '-1' for permanent)" });
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequest(new { error = "Reason is required" });
+
+        try
+        {
+            var success = await _accountService.BanCharacterAsync(stackId, characterName, request.Duration, request.Reason, cancellationToken);
+            return success
+                ? Ok(new { success = true, message = $"Character '{characterName}' banned for {request.Duration}" })
+                : BadRequest(new { success = false, error = "Failed to ban character. Character may not exist." });
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to ban character: {ex.Message}" }); }
+    }
+
+    /// <summary>
+    /// Unban a character
+    /// </summary>
+    [HttpDelete("{characterName}/ban")]
+    public async Task<IActionResult> UnbanCharacter(
+        string stackId,
+        string characterName,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var success = await _accountService.UnbanCharacterAsync(stackId, characterName, cancellationToken);
+            return success
+                ? Ok(new { success = true, message = $"Character '{characterName}' unbanned" })
+                : BadRequest(new { success = false, error = "Failed to unban character." });
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to unban character: {ex.Message}" }); }
+    }
+
+    /// <summary>
+    /// Mute a character's chat
+    /// </summary>
+    [HttpPost("{characterName}/mute")]
+    public async Task<IActionResult> MuteCharacter(
+        string stackId,
+        string characterName,
+        [FromBody] MuteCharacterRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.Minutes < 1)
+            return BadRequest(new { error = "Minutes must be at least 1" });
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequest(new { error = "Reason is required" });
+
+        try
+        {
+            var success = await _accountService.MuteCharacterAsync(stackId, characterName, request.Minutes, request.Reason, cancellationToken);
+            return success
+                ? Ok(new { success = true, message = $"Character '{characterName}' muted for {request.Minutes} minutes" })
+                : BadRequest(new { success = false, error = "Failed to mute character." });
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to mute character: {ex.Message}" }); }
+    }
+
+    /// <summary>
+    /// Freeze a character in place (requires the character to be online)
+    /// </summary>
+    [HttpPost("{characterName}/freeze")]
+    public async Task<IActionResult> FreezeCharacter(
+        string stackId,
+        string characterName,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var success = await _accountService.FreezeCharacterAsync(stackId, characterName, cancellationToken);
+            return success
+                ? Ok(new { success = true, message = $"Character '{characterName}' frozen" })
+                : BadRequest(new { success = false, error = "Failed to freeze character. Character may be offline." });
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to freeze character: {ex.Message}" }); }
+    }
+
+    /// <summary>
+    /// Revive a dead character
+    /// </summary>
+    [HttpPost("{characterName}/revive")]
+    public async Task<IActionResult> ReviveCharacter(
+        string stackId,
+        string characterName,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var success = await _accountService.ReviveCharacterAsync(stackId, characterName, cancellationToken);
+            return success
+                ? Ok(new { success = true, message = $"Character '{characterName}' revived" })
+                : BadRequest(new { success = false, error = "Failed to revive character." });
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to revive character: {ex.Message}" }); }
+    }
+
+    /// <summary>
+    /// Repair all gear for a character
+    /// </summary>
+    [HttpPost("{characterName}/repair-gear")]
+    public async Task<IActionResult> RepairGear(
+        string stackId,
+        string characterName,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var success = await _accountService.RepairGearAsync(stackId, characterName, cancellationToken);
+            return success
+                ? Ok(new { success = true, message = $"Gear repaired for '{characterName}'" })
+                : BadRequest(new { success = false, error = "Failed to repair gear." });
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to repair gear: {ex.Message}" }); }
+    }
+
+    /// <summary>
+    /// Max all skills for a character
+    /// </summary>
+    [HttpPost("{characterName}/max-skills")]
+    public async Task<IActionResult> MaxSkills(
+        string stackId,
+        string characterName,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var success = await _accountService.MaxSkillsAsync(stackId, characterName, cancellationToken);
+            return success
+                ? Ok(new { success = true, message = $"Skills maxed for '{characterName}'" })
+                : BadRequest(new { success = false, error = "Failed to max skills." });
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to max skills: {ex.Message}" }); }
+    }
+
+    /// <summary>
+    /// Modify gold for a character (positive = add, negative = remove)
+    /// </summary>
+    [HttpPost("{characterName}/modify-money")]
+    public async Task<IActionResult> ModifyMoney(
+        string stackId,
+        string characterName,
+        [FromBody] ModifyMoneyRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.CopperAmount == 0)
+            return BadRequest(new { error = "CopperAmount must be non-zero (positive to add, negative to remove)" });
+
+        try
+        {
+            var success = await _accountService.ModifyMoneyAsync(stackId, characterName, request.CopperAmount, cancellationToken);
+            return success
+                ? Ok(new { success = true, message = $"Money modified for '{characterName}'" })
+                : BadRequest(new { success = false, error = "Failed to modify money." });
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to modify money: {ex.Message}" }); }
+    }
+
+    /// <summary>
+    /// Add honor points to a character
+    /// </summary>
+    [HttpPost("{characterName}/add-honor")]
+    public async Task<IActionResult> AddHonor(
+        string stackId,
+        string characterName,
+        [FromBody] AddHonorRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.Amount <= 0)
+            return BadRequest(new { error = "Amount must be positive" });
+
+        try
+        {
+            var success = await _accountService.AddHonorAsync(stackId, characterName, request.Amount, cancellationToken);
+            return success
+                ? Ok(new { success = true, message = $"Added {request.Amount} honor to '{characterName}'" })
+                : BadRequest(new { success = false, error = "Failed to add honor." });
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to add honor: {ex.Message}" }); }
+    }
+
+    /// <summary>
+    /// Add arena points to a character
+    /// </summary>
+    [HttpPost("{characterName}/add-arena-points")]
+    public async Task<IActionResult> AddArenaPoints(
+        string stackId,
+        string characterName,
+        [FromBody] AddArenaPointsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.Amount <= 0)
+            return BadRequest(new { error = "Amount must be positive" });
+
+        try
+        {
+            var success = await _accountService.AddArenaPointsAsync(stackId, characterName, request.Amount, cancellationToken);
+            return success
+                ? Ok(new { success = true, message = $"Added {request.Amount} arena points to '{characterName}'" })
+                : BadRequest(new { success = false, error = "Failed to add arena points." });
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to add arena points: {ex.Message}" }); }
+    }
+
+    /// <summary>
+    /// Add an item directly to a character's inventory
+    /// </summary>
+    [HttpPost("{characterName}/add-item")]
+    public async Task<IActionResult> AddItem(
+        string stackId,
+        string characterName,
+        [FromBody] AddItemRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.ItemId <= 0)
+            return BadRequest(new { error = "ItemId must be a positive item entry ID" });
+        if (request.Count < 1)
+            return BadRequest(new { error = "Count must be at least 1" });
+
+        try
+        {
+            var success = await _accountService.AddItemAsync(stackId, characterName, request.ItemId, request.Count, cancellationToken);
+            return success
+                ? Ok(new { success = true, message = $"Added item {request.ItemId} x{request.Count} to '{characterName}'" })
+                : BadRequest(new { success = false, error = "Failed to add item. Item entry may be invalid." });
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to add item: {ex.Message}" }); }
+    }
 }
+

@@ -74,6 +74,21 @@ public class CharacterDto
     /// Z coordinate
     /// </summary>
     public float PositionZ { get; set; }
+
+    /// <summary>
+    /// Character wealth in copper (1 gold = 10 000 copper)
+    /// </summary>
+    public long Money { get; set; }
+
+    /// <summary>
+    /// Zone ID the character is currently in
+    /// </summary>
+    public int Zone { get; set; }
+
+    /// <summary>
+    /// Guild name (null if not in a guild)
+    /// </summary>
+    public string? Guild { get; set; }
 }
 
 /// <summary>
