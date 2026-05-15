@@ -6,7 +6,7 @@ import {
   Trophy, Swords
 } from 'lucide-react'
 import type { CharacterDto } from '@/types/account.types'
-import { EQUIPMENT_SLOT_LABELS, QUALITY_COLORS, QUALITY_LABELS } from '@/types/character.types'
+import { EQUIPMENT_SLOT_LABELS, QUALITY_COLORS } from '@/types/character.types'
 import { useCharacterInventory } from '@/hooks/useCharacters'
 import {
   useBanCharacter, useUnbanCharacter, useMuteCharacter,
