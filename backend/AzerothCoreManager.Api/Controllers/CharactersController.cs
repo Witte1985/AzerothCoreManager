@@ -472,47 +472,7 @@ public class CharactersController : ControllerBase
     }
 
     /// <summary>
-    /// Repair all gear for a character
-    /// </summary>
-    [HttpPost("{characterName}/repair-gear")]
-    public async Task<IActionResult> RepairGear(
-        string stackId,
-        string characterName,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var success = await _accountService.RepairGearAsync(stackId, characterName, cancellationToken);
-            return success
-                ? Ok(new { success = true, message = $"Gear repaired for '{characterName}'" })
-                : BadRequest(new { success = false, error = "Failed to repair gear." });
-        }
-        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
-        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to repair gear: {ex.Message}" }); }
-    }
-
-    /// <summary>
-    /// Max all skills for a character
-    /// </summary>
-    [HttpPost("{characterName}/max-skills")]
-    public async Task<IActionResult> MaxSkills(
-        string stackId,
-        string characterName,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var success = await _accountService.MaxSkillsAsync(stackId, characterName, cancellationToken);
-            return success
-                ? Ok(new { success = true, message = $"Skills maxed for '{characterName}'" })
-                : BadRequest(new { success = false, error = "Failed to max skills." });
-        }
-        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
-        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to max skills: {ex.Message}" }); }
-    }
-
-    /// <summary>
-    /// Modify gold for a character (positive = add, negative = remove)
+    /// Modify gold for a character (send via mail, positive amounts only)
     /// </summary>
     [HttpPost("{characterName}/modify-money")]
     public async Task<IActionResult> ModifyMoney(
@@ -533,54 +493,6 @@ public class CharactersController : ControllerBase
         }
         catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
         catch (Exception ex) { return StatusCode(500, new { error = $"Failed to modify money: {ex.Message}" }); }
-    }
-
-    /// <summary>
-    /// Add honor points to a character
-    /// </summary>
-    [HttpPost("{characterName}/add-honor")]
-    public async Task<IActionResult> AddHonor(
-        string stackId,
-        string characterName,
-        [FromBody] AddHonorRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        if (request.Amount <= 0)
-            return BadRequest(new { error = "Amount must be positive" });
-
-        try
-        {
-            var success = await _accountService.AddHonorAsync(stackId, characterName, request.Amount, cancellationToken);
-            return success
-                ? Ok(new { success = true, message = $"Added {request.Amount} honor to '{characterName}'" })
-                : BadRequest(new { success = false, error = "Failed to add honor." });
-        }
-        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
-        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to add honor: {ex.Message}" }); }
-    }
-
-    /// <summary>
-    /// Add arena points to a character
-    /// </summary>
-    [HttpPost("{characterName}/add-arena-points")]
-    public async Task<IActionResult> AddArenaPoints(
-        string stackId,
-        string characterName,
-        [FromBody] AddArenaPointsRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        if (request.Amount <= 0)
-            return BadRequest(new { error = "Amount must be positive" });
-
-        try
-        {
-            var success = await _accountService.AddArenaPointsAsync(stackId, characterName, request.Amount, cancellationToken);
-            return success
-                ? Ok(new { success = true, message = $"Added {request.Amount} arena points to '{characterName}'" })
-                : BadRequest(new { success = false, error = "Failed to add arena points." });
-        }
-        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
-        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to add arena points: {ex.Message}" }); }
     }
 
     /// <summary>

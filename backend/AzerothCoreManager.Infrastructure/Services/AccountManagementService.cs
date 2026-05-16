@@ -381,7 +381,7 @@ public class AccountManagementService : IAccountManagementService
     {
         try
         {
-            var command = $"send items {characterName} \"{characterName}\" \"Items\" \"Sent via Manager\" {itemId}:{count}";
+            var command = $"send items {characterName} \"Items from Manager\" \"Items sent via AzerothCore Manager\" {itemId}:{count}";
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
             
             var success = result.Contains("Mail sent", StringComparison.OrdinalIgnoreCase);
@@ -408,7 +408,7 @@ public class AccountManagementService : IAccountManagementService
     {
         try
         {
-            var command = $"send money {characterName} \"{characterName}\" \"Gold\" \"Sent via Manager\" {copperAmount}";
+            var command = $"send money {characterName} \"Gold from Manager\" \"Gold sent via AzerothCore Manager\" {copperAmount}";
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
             
             var success = result.Contains("Mail sent", StringComparison.OrdinalIgnoreCase);
@@ -441,8 +441,10 @@ public class AccountManagementService : IAccountManagementService
             
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
             
-            var success = result.Contains("kicked", StringComparison.OrdinalIgnoreCase) ||
-                         result.Contains("Player kicked", StringComparison.OrdinalIgnoreCase);
+            // AC may return an empty string on success for kick; use negative detection.
+            var success = !result.Contains("not found", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("offline", StringComparison.OrdinalIgnoreCase);
 
             if (success)
             {
@@ -470,7 +472,10 @@ public class AccountManagementService : IAccountManagementService
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
             
             var success = result.Contains("rename", StringComparison.OrdinalIgnoreCase) ||
-                         result.Contains("success", StringComparison.OrdinalIgnoreCase);
+                         result.Contains("success", StringComparison.OrdinalIgnoreCase) ||
+                         (!result.Contains("not found", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
+                          string.IsNullOrWhiteSpace(result));
 
             if (success)
             {
@@ -498,7 +503,10 @@ public class AccountManagementService : IAccountManagementService
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
             
             var success = result.Contains("customize", StringComparison.OrdinalIgnoreCase) ||
-                         result.Contains("success", StringComparison.OrdinalIgnoreCase);
+                         result.Contains("success", StringComparison.OrdinalIgnoreCase) ||
+                         (!result.Contains("not found", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
+                          string.IsNullOrWhiteSpace(result));
 
             if (success)
             {
@@ -554,8 +562,10 @@ public class AccountManagementService : IAccountManagementService
             var command = $"ban character {characterName} {duration} {reason}";
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
 
-            var success = result.Contains("banned", StringComparison.OrdinalIgnoreCase) ||
-                          result.Contains("ban", StringComparison.OrdinalIgnoreCase);
+            // "ban" alone is too broad — it matches error messages like "cannot ban"
+            var success = result.Contains("banned", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("error", StringComparison.OrdinalIgnoreCase);
 
             if (success)
                 _logger.LogInformation("Character {CharacterName} banned on stack {StackId} for {Duration}: {Reason}", characterName, stackId, duration, reason);
@@ -602,8 +612,10 @@ public class AccountManagementService : IAccountManagementService
             var command = $"mute {characterName} {minutes} {reason}";
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
 
-            var success = result.Contains("muted", StringComparison.OrdinalIgnoreCase) ||
-                          result.Contains("mute", StringComparison.OrdinalIgnoreCase);
+            // AC responds with "silenced" on successful mute (e.g. "Account of player X silenced for N minutes.")
+            var success = result.Contains("silenced", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("error", StringComparison.OrdinalIgnoreCase);
 
             if (success)
                 _logger.LogInformation("Character {CharacterName} muted for {Minutes}m on stack {StackId}: {Reason}", characterName, minutes, stackId, reason);
@@ -667,68 +679,28 @@ public class AccountManagementService : IAccountManagementService
         }
     }
 
-    public async Task<bool> RepairGearAsync(string stackId, string characterName, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            // gear repair requires the player to be the selected target in-game.
-            // Via SOAP we use the character name prefix approach that some commands support.
-            var command = $"gear repair {characterName}";
-            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
-
-            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
-                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
-
-            if (success)
-                _logger.LogInformation("Gear repaired for character {CharacterName} on stack {StackId}", characterName, stackId);
-            else
-                _logger.LogWarning("Failed to repair gear for character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
-
-            return success;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error repairing gear for character {CharacterName} on stack {StackId}", characterName, stackId);
-            return false;
-        }
-    }
-
-    public async Task<bool> MaxSkillsAsync(string stackId, string characterName, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var command = $"maxskill {characterName}";
-            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
-
-            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
-                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
-
-            if (success)
-                _logger.LogInformation("Skills maxed for character {CharacterName} on stack {StackId}", characterName, stackId);
-            else
-                _logger.LogWarning("Failed to max skills for character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
-
-            return success;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error maxing skills for character {CharacterName} on stack {StackId}", characterName, stackId);
-            return false;
-        }
-    }
-
     public async Task<bool> ModifyMoneyAsync(string stackId, string characterName, long copperAmount, CancellationToken cancellationToken = default)
     {
         try
         {
-            var command = $"modify money {characterName} {copperAmount}";
+            if (copperAmount <= 0)
+            {
+                // .modify money #money requires a selected target in-game; it cannot remove gold via SOAP.
+                _logger.LogWarning("Cannot remove money from character {CharacterName} via SOAP — .modify money requires a selected target", characterName);
+                return false;
+            }
+
+            // .modify money is target-based (no player name param). For SOAP, the only viable
+            // approach to deliver gold to a specific character is via mail (send money).
+            var command = $"send money {characterName} \"Gold from Manager\" \"Gold sent via AzerothCore Manager\" {copperAmount}";
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
 
-            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
-                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
+            var success = result.Contains("Mail sent", StringComparison.OrdinalIgnoreCase) ||
+                          (!result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
+                           !result.Contains("not found", StringComparison.OrdinalIgnoreCase));
 
             if (success)
-                _logger.LogInformation("Money modified by {Amount} copper for character {CharacterName} on stack {StackId}", copperAmount, characterName, stackId);
+                _logger.LogInformation("Sent {Amount} copper to character {CharacterName} via mail on stack {StackId}", copperAmount, characterName, stackId);
             else
                 _logger.LogWarning("Failed to modify money for character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
 
@@ -741,54 +713,6 @@ public class AccountManagementService : IAccountManagementService
         }
     }
 
-    public async Task<bool> AddHonorAsync(string stackId, string characterName, int amount, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var command = $"honor add {characterName} {amount}";
-            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
-
-            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
-                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
-
-            if (success)
-                _logger.LogInformation("Added {Amount} honor to character {CharacterName} on stack {StackId}", amount, characterName, stackId);
-            else
-                _logger.LogWarning("Failed to add honor to character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
-
-            return success;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error adding honor to character {CharacterName} on stack {StackId}", characterName, stackId);
-            return false;
-        }
-    }
-
-    public async Task<bool> AddArenaPointsAsync(string stackId, string characterName, int amount, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var command = $"modify arenapoints {characterName} {amount}";
-            var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
-
-            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
-                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
-
-            if (success)
-                _logger.LogInformation("Added {Amount} arena points to character {CharacterName} on stack {StackId}", amount, characterName, stackId);
-            else
-                _logger.LogWarning("Failed to add arena points to character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
-
-            return success;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error adding arena points to character {CharacterName} on stack {StackId}", characterName, stackId);
-            return false;
-        }
-    }
-
     public async Task<bool> AddItemAsync(string stackId, string characterName, int itemId, int count, CancellationToken cancellationToken = default)
     {
         try
@@ -796,8 +720,11 @@ public class AccountManagementService : IAccountManagementService
             var command = $"additem {characterName} {itemId} {count}";
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
 
+            // AC responds with "You have added N of item #X to Y's inventory." — "added" is reliable.
             var success = result.Contains("added", StringComparison.OrdinalIgnoreCase) ||
-                          result.Contains("item", StringComparison.OrdinalIgnoreCase);
+                          (!result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
+                           !result.Contains("not found", StringComparison.OrdinalIgnoreCase) &&
+                           string.IsNullOrWhiteSpace(result));
 
             if (success)
                 _logger.LogInformation("Added item {ItemId}x{Count} to character {CharacterName} on stack {StackId}", itemId, count, characterName, stackId);

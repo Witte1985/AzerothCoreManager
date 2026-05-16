@@ -102,14 +102,6 @@ export interface ModifyMoneyRequest {
   copperAmount: number
 }
 
-export interface AddHonorRequest {
-  amount: number
-}
-
-export interface AddArenaPointsRequest {
-  amount: number
-}
-
 export interface AddItemRequest {
   itemId: number
   count: number

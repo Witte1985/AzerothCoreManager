@@ -16,8 +16,6 @@ import type {
   BanCharacterRequest,
   MuteCharacterRequest,
   ModifyMoneyRequest,
-  AddHonorRequest,
-  AddArenaPointsRequest,
   AddItemRequest,
   AccountActionResponse,
   CharacterActionResponse,
@@ -151,25 +149,9 @@ export const characterApi = {
   revive: (stackId: string, characterName: string) =>
     apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/revive`),
 
-  // Repair all gear
-  repairGear: (stackId: string, characterName: string) =>
-    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/repair-gear`),
-
-  // Max all skills
-  maxSkills: (stackId: string, characterName: string) =>
-    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/max-skills`),
-
   // Modify gold (positive = add, negative = remove)
   modifyMoney: (stackId: string, characterName: string, request: ModifyMoneyRequest) =>
     apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/modify-money`, request),
-
-  // Add honor points
-  addHonor: (stackId: string, characterName: string, request: AddHonorRequest) =>
-    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/add-honor`, request),
-
-  // Add arena points
-  addArenaPoints: (stackId: string, characterName: string, request: AddArenaPointsRequest) =>
-    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/add-arena-points`, request),
 
   // Add item directly to inventory
   addItem: (stackId: string, characterName: string, request: AddItemRequest) =>

@@ -44,14 +44,8 @@ public interface IAccountManagementService
     Task<bool> FreezeCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
     Task<bool> ReviveCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
 
-    // Character utility (SOAP) — new
-    Task<bool> RepairGearAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
-    Task<bool> MaxSkillsAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
-
     // Character economy (SOAP) — new
     Task<bool> ModifyMoneyAsync(string stackId, string characterName, long copperAmount, CancellationToken cancellationToken = default);
-    Task<bool> AddHonorAsync(string stackId, string characterName, int amount, CancellationToken cancellationToken = default);
-    Task<bool> AddArenaPointsAsync(string stackId, string characterName, int amount, CancellationToken cancellationToken = default);
 
     // Character items (SOAP) — new
     Task<bool> AddItemAsync(string stackId, string characterName, int itemId, int count, CancellationToken cancellationToken = default);

@@ -4,8 +4,6 @@ import type {
   BanCharacterRequest,
   MuteCharacterRequest,
   ModifyMoneyRequest,
-  AddHonorRequest,
-  AddArenaPointsRequest,
   AddItemRequest,
 } from '@/types/account.types'
 
@@ -83,20 +81,6 @@ export function useReviveCharacter(stackId: string) {
   })
 }
 
-// Repair gear
-export function useRepairGear(stackId: string) {
-  return useMutation({
-    mutationFn: (characterName: string) => characterApi.repairGear(stackId, characterName),
-  })
-}
-
-// Max skills
-export function useMaxSkills(stackId: string) {
-  return useMutation({
-    mutationFn: (characterName: string) => characterApi.maxSkills(stackId, characterName),
-  })
-}
-
 // Modify money
 export function useModifyMoney(stackId: string) {
   const queryClient = useQueryClient()
@@ -104,22 +88,6 @@ export function useModifyMoney(stackId: string) {
     mutationFn: ({ characterName, request }: { characterName: string; request: ModifyMoneyRequest }) =>
       characterApi.modifyMoney(stackId, characterName, request),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: characterKeys.list(stackId) }),
-  })
-}
-
-// Add honor
-export function useAddHonor(stackId: string) {
-  return useMutation({
-    mutationFn: ({ characterName, request }: { characterName: string; request: AddHonorRequest }) =>
-      characterApi.addHonor(stackId, characterName, request),
-  })
-}
-
-// Add arena points
-export function useAddArenaPoints(stackId: string) {
-  return useMutation({
-    mutationFn: ({ characterName, request }: { characterName: string; request: AddArenaPointsRequest }) =>
-      characterApi.addArenaPoints(stackId, characterName, request),
   })
 }
 

@@ -3,15 +3,13 @@ import {
   Loader2, RefreshCw, Sword, Shield, ShoppingBag, Building2,
   Wrench, Star, Coins, Ban, VolumeX, Snowflake, Heart,
   MessageSquare, Package, TrendingUp, Edit, Palette, UserX, Plus,
-  Trophy, Swords
 } from 'lucide-react'
 import type { CharacterDto } from '@/types/account.types'
 import { EQUIPMENT_SLOT_LABELS, QUALITY_COLORS } from '@/types/character.types'
 import { useCharacterInventory } from '@/hooks/useCharacters'
 import {
   useBanCharacter, useUnbanCharacter, useMuteCharacter,
-  useFreezeCharacter, useReviveCharacter, useRepairGear,
-  useMaxSkills, useModifyMoney, useAddHonor, useAddArenaPoints, useAddItem,
+  useFreezeCharacter, useReviveCharacter, useModifyMoney, useAddItem,
 } from '@/hooks/useCharacters'
 import {
   useSendMessage, useSendItems, useSendMoney,
@@ -20,7 +18,6 @@ import {
 import BanCharacterDialog from './dialogs/BanCharacterDialog'
 import MuteCharacterDialog from './dialogs/MuteCharacterDialog'
 import ModifyMoneyDialog from './dialogs/ModifyMoneyDialog'
-import AddPointsDialog from './dialogs/AddPointsDialog'
 import AddItemDialog from './dialogs/AddItemDialog'
 import SendMessageDialog from '@/components/accounts/dialogs/SendMessageDialog'
 import SendItemsDialog from '@/components/accounts/dialogs/SendItemsDialog'
@@ -80,11 +77,7 @@ export default function CharacterDetailPanel({ character, stackId }: CharacterDe
   const muteMutation = useMuteCharacter(stackId)
   const freezeMutation = useFreezeCharacter(stackId)
   const reviveMutation = useReviveCharacter(stackId)
-  const repairMutation = useRepairGear(stackId)
-  const maxSkillsMutation = useMaxSkills(stackId)
   const modifyMoneyMutation = useModifyMoney(stackId)
-  const addHonorMutation = useAddHonor(stackId)
-  const addArenaPointsMutation = useAddArenaPoints(stackId)
   const addItemMutation = useAddItem(stackId)
   const sendMessageMutation = useSendMessage(stackId)
   const sendItemsMutation = useSendItems(stackId)
@@ -283,20 +276,12 @@ export default function CharacterDetailPanel({ character, stackId }: CharacterDe
 
             {/* Gear & Skills */}
             <ActionSection title="Gear & Skills">
-              <ActionButton icon={<Wrench />} label="Repair Gear" color="blue" onClick={() =>
-                runAction(() => repairMutation.mutateAsync(character.name), `Gear repaired for ${character.name}`)
-              } />
-              <ActionButton icon={<TrendingUp />} label="Max Skills" color="blue" onClick={() =>
-                runAction(() => maxSkillsMutation.mutateAsync(character.name), `Skills maxed for ${character.name}`)
-              } />
               <ActionButton icon={<TrendingUp />} label="Set Level" color="blue" onClick={() => setActiveDialog('level')} />
             </ActionSection>
 
             {/* Economy */}
             <ActionSection title="Economy">
               <ActionButton icon={<Coins />} label="Modify Gold" color="yellow" onClick={() => setActiveDialog('money')} />
-              <ActionButton icon={<Trophy />} label="Add Honor" color="blue" onClick={() => setActiveDialog('honor')} />
-              <ActionButton icon={<Swords />} label="Arena Points" color="purple" onClick={() => setActiveDialog('arena')} />
             </ActionSection>
 
             {/* Items & Mail */}
@@ -349,30 +334,6 @@ export default function CharacterDetailPanel({ character, stackId }: CharacterDe
           onSubmit={async (copperAmount) => {
             await modifyMoneyMutation.mutateAsync({ characterName: character.name, request: { copperAmount } })
             showSuccess(`Gold modified for ${character.name}`)
-          }}
-        />
-      )}
-      {activeDialog === 'honor' && (
-        <AddPointsDialog
-          characterName={character.name}
-          title="Add Honor Points"
-          label="Honor"
-          onClose={() => setActiveDialog(null)}
-          onSubmit={async (amount) => {
-            await addHonorMutation.mutateAsync({ characterName: character.name, request: { amount } })
-            showSuccess(`Added ${amount} honor to ${character.name}`)
-          }}
-        />
-      )}
-      {activeDialog === 'arena' && (
-        <AddPointsDialog
-          characterName={character.name}
-          title="Add Arena Points"
-          label="Arena Points"
-          onClose={() => setActiveDialog(null)}
-          onSubmit={async (amount) => {
-            await addArenaPointsMutation.mutateAsync({ characterName: character.name, request: { amount } })
-            showSuccess(`Added ${amount} arena points to ${character.name}`)
           }}
         />
       )}
