@@ -128,7 +128,6 @@ export function useAddItem(stackId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({
-      characterGuid,
       characterName,
       request,
     }: {
