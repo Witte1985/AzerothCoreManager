@@ -432,23 +432,23 @@ public class CharactersController : ControllerBase
     }
 
     /// <summary>
-    /// Freeze a character in place (requires the character to be online)
+    /// Unmute a character's chat
     /// </summary>
-    [HttpPost("{characterName}/freeze")]
-    public async Task<IActionResult> FreezeCharacter(
+    [HttpPost("{characterName}/unmute")]
+    public async Task<IActionResult> UnmuteCharacter(
         string stackId,
         string characterName,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var success = await _accountService.FreezeCharacterAsync(stackId, characterName, cancellationToken);
+            var success = await _accountService.UnmuteCharacterAsync(stackId, characterName, cancellationToken);
             return success
-                ? Ok(new { success = true, message = $"Character '{characterName}' frozen" })
-                : BadRequest(new { success = false, error = "Failed to freeze character. Character may be offline." });
+                ? Ok(new { success = true, message = $"Character '{characterName}' unmuted" })
+                : BadRequest(new { success = false, error = "Failed to unmute character." });
         }
         catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
-        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to freeze character: {ex.Message}" }); }
+        catch (Exception ex) { return StatusCode(500, new { error = $"Failed to unmute character: {ex.Message}" }); }
     }
 
     /// <summary>

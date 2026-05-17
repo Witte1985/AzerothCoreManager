@@ -588,8 +588,9 @@ public class AccountManagementService : IAccountManagementService
             var command = $"unban character {characterName}";
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
 
-            var success = result.Contains("unbanned", StringComparison.OrdinalIgnoreCase) ||
-                          result.Contains("removed", StringComparison.OrdinalIgnoreCase);
+            // AC returns empty string on success, only sends error message if player not found
+            var success = !result.Contains("not found", StringComparison.OrdinalIgnoreCase) &&
+                          !result.Contains("error", StringComparison.OrdinalIgnoreCase);
 
             if (success)
                 _logger.LogInformation("Character {CharacterName} unbanned on stack {StackId}", characterName, stackId);
@@ -612,9 +613,8 @@ public class AccountManagementService : IAccountManagementService
             var command = $"mute {characterName} {minutes} {reason}";
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
 
-            // AC responds with "silenced" on successful mute (e.g. "Account of player X silenced for N minutes.")
-            var success = result.Contains("silenced", StringComparison.OrdinalIgnoreCase) &&
-                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase) &&
+            // AC sends mute notifications to online GMs, not the console/SOAP caller — empty response = success
+            var success = !result.Contains("not found", StringComparison.OrdinalIgnoreCase) &&
                           !result.Contains("error", StringComparison.OrdinalIgnoreCase);
 
             if (success)
@@ -631,26 +631,28 @@ public class AccountManagementService : IAccountManagementService
         }
     }
 
-    public async Task<bool> FreezeCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default)
+    public async Task<bool> UnmuteCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default)
     {
         try
         {
-            var command = $"freeze {characterName}";
+            var command = $"unmute {characterName}";
             var result = await _soapProxy.ExecuteCommandAsync(stackId, command, cancellationToken);
 
-            var success = !result.Contains("error", StringComparison.OrdinalIgnoreCase) &&
-                          !result.Contains("not found", StringComparison.OrdinalIgnoreCase);
+            // AC returns "You have enabled {}'s chat." on success, or "Player's chat is already enabled." — both are fine
+            var success = result.Contains("enabled", StringComparison.OrdinalIgnoreCase) ||
+                          (!result.Contains("not found", StringComparison.OrdinalIgnoreCase) &&
+                           !result.Contains("error", StringComparison.OrdinalIgnoreCase));
 
             if (success)
-                _logger.LogInformation("Character {CharacterName} frozen on stack {StackId}", characterName, stackId);
+                _logger.LogInformation("Character {CharacterName} unmuted on stack {StackId}", characterName, stackId);
             else
-                _logger.LogWarning("Failed to freeze character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
+                _logger.LogWarning("Failed to unmute character {CharacterName} on stack {StackId}: {Result}", characterName, stackId, result);
 
             return success;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error freezing character {CharacterName} on stack {StackId}", characterName, stackId);
+            _logger.LogError(ex, "Error unmuting character {CharacterName} on stack {StackId}", characterName, stackId);
             return false;
         }
     }

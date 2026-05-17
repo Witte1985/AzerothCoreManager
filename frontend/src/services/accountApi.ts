@@ -141,9 +141,9 @@ export const characterApi = {
   mute: (stackId: string, characterName: string, request: MuteCharacterRequest) =>
     apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/mute`, request),
 
-  // Freeze character
-  freeze: (stackId: string, characterName: string) =>
-    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/freeze`),
+  // Unmute character
+  unmute: (stackId: string, characterName: string) =>
+    apiClient.post<CharacterActionResponse>(`/stacks/${stackId}/characters/${characterName}/unmute`),
 
   // Revive character
   revive: (stackId: string, characterName: string) =>

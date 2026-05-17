@@ -41,7 +41,7 @@ public interface IAccountManagementService
     Task<bool> BanCharacterAsync(string stackId, string characterName, string duration, string reason, CancellationToken cancellationToken = default);
     Task<bool> UnbanCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
     Task<bool> MuteCharacterAsync(string stackId, string characterName, int minutes, string reason, CancellationToken cancellationToken = default);
-    Task<bool> FreezeCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
+    Task<bool> UnmuteCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
     Task<bool> ReviveCharacterAsync(string stackId, string characterName, CancellationToken cancellationToken = default);
 
     // Character economy (SOAP) — new

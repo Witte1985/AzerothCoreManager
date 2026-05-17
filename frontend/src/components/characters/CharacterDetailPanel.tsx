@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import {
   Loader2, RefreshCw, Sword, Shield, ShoppingBag, Building2,
-  Wrench, Star, Coins, Ban, VolumeX, Snowflake, Heart,
+  Wrench, Star, Coins, Ban, VolumeX, Volume2, Heart,
   MessageSquare, Package, TrendingUp, Edit, Palette, UserX, Plus,
 } from 'lucide-react'
 import type { CharacterDto } from '@/types/account.types'
 import { EQUIPMENT_SLOT_LABELS, QUALITY_COLORS } from '@/types/character.types'
 import { useCharacterInventory } from '@/hooks/useCharacters'
 import {
-  useBanCharacter, useUnbanCharacter, useMuteCharacter,
-  useFreezeCharacter, useReviveCharacter, useModifyMoney, useAddItem,
+  useBanCharacter, useUnbanCharacter, useMuteCharacter, useUnmuteCharacter,
+  useReviveCharacter, useModifyMoney, useAddItem,
 } from '@/hooks/useCharacters'
 import {
   useSendMessage, useSendItems, useSendMoney,
@@ -75,7 +75,7 @@ export default function CharacterDetailPanel({ character, stackId }: CharacterDe
   const banMutation = useBanCharacter(stackId)
   const unbanMutation = useUnbanCharacter(stackId)
   const muteMutation = useMuteCharacter(stackId)
-  const freezeMutation = useFreezeCharacter(stackId)
+  const unmuteMutation = useUnmuteCharacter(stackId)
   const reviveMutation = useReviveCharacter(stackId)
   const modifyMoneyMutation = useModifyMoney(stackId)
   const addItemMutation = useAddItem(stackId)
@@ -261,9 +261,6 @@ export default function CharacterDetailPanel({ character, stackId }: CharacterDe
                   if (confirm(`Kick ${character.name}?`)) runAction(() => kickMutation.mutateAsync(character.name), `${character.name} kicked`)
                 }} />
               )}
-              <ActionButton icon={<Snowflake />} label="Freeze" color="blue" onClick={() =>
-                runAction(() => freezeMutation.mutateAsync(character.name), `${character.name} frozen`)
-              } />
               <ActionButton icon={<Heart />} label="Revive" color="green" onClick={() =>
                 runAction(() => reviveMutation.mutateAsync(character.name), `${character.name} revived`)
               } />
@@ -272,6 +269,9 @@ export default function CharacterDetailPanel({ character, stackId }: CharacterDe
                 runAction(() => unbanMutation.mutateAsync(character.name), `${character.name} unbanned`)
               } />
               <ActionButton icon={<VolumeX />} label="Mute" color="orange" onClick={() => setActiveDialog('mute')} />
+              <ActionButton icon={<Volume2 />} label="Unmute" color="gray" onClick={() =>
+                runAction(() => unmuteMutation.mutateAsync(character.name), `${character.name} unmuted`)
+              } />
             </ActionSection>
 
             {/* Gear & Skills */}

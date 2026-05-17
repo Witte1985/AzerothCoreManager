@@ -67,10 +67,9 @@ export function useMuteCharacter(stackId: string) {
   })
 }
 
-// Freeze character
-export function useFreezeCharacter(stackId: string) {
+export function useUnmuteCharacter(stackId: string) {
   return useMutation({
-    mutationFn: (characterName: string) => characterApi.freeze(stackId, characterName),
+    mutationFn: (characterName: string) => characterApi.unmute(stackId, characterName),
   })
 }
 
