@@ -39,4 +39,9 @@ public class BuildStatusDto
     /// Estimated completion time (null if cannot be estimated)
     /// </summary>
     public DateTime? EstimatedCompletion { get; set; }
+
+    /// <summary>
+    /// Error message if the build failed (null if build succeeded or is in progress)
+    /// </summary>
+    public string? ErrorMessage { get; set; }
 }

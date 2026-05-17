@@ -59,6 +59,7 @@ export interface BuildStatusDto {
   recentLogs: string[]
   startedAt: string
   estimatedCompletion?: string
+  errorMessage?: string
 }
 
 // Stack DTOs

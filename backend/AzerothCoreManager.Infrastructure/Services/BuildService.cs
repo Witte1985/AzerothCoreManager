@@ -145,6 +145,10 @@ public sealed class BuildService : IBuildService
             Directory.CreateDirectory(buildPath);
             _logger.LogInformation("Build path created: {BuildPath}", buildPath);
 
+            // Mark all directories as safe for git (avoids "dubious ownership" errors in Docker
+            // where files may be owned by a different UID than the running process)
+            await RunProcessAsync(stackId, "git", "config --global --add safe.directory *", buildPath, cancellationToken);
+
             // Determine repository URL and branch
             // For updates (configuration is null), use stored values from database if available
             // For new builds, use the configuration-based defaults
@@ -613,6 +617,7 @@ public sealed class BuildService : IBuildService
         {
             buildStatus.CurrentPhase = BuildPhase.Failed;
             buildStatus.CurrentStep = "Build failed";
+            buildStatus.ErrorMessage = errorMessage;
             buildStatus.RecentLogs.Add($"ERROR: {errorMessage}");
 
             await _eventPublisher.PublishBuildFailedAsync(stackId, errorMessage);

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSignalR } from './useSignalR'
 import { signalRService } from '@/services/signalr'
+import { buildApi } from '@/services/api'
 import { BuildPhase } from '@/types/stack.types'
 
 interface BuildProgress {
@@ -9,6 +10,8 @@ interface BuildProgress {
   step: string
   logs: string[]
 }
+
+const POLL_INTERVAL_MS = 4000
 
 export function useBuildProgress(stackId: string | null) {
   const [progress, setProgress] = useState<BuildProgress>({
@@ -20,10 +23,52 @@ export function useBuildProgress(stackId: string | null) {
   const [isComplete, setIsComplete] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Track whether SignalR has delivered any update so polling can be skipped
+  const signalRActiveRef = useRef(false)
+  const isCompleteRef = useRef(false)
+
   const { on, invoke } = useSignalR({
     hubUrl: '/hubs/buildprogress',
     autoConnect: !!stackId,
   })
+
+  // HTTP polling fallback: fetch build status periodically in case SignalR events are missed
+  useEffect(() => {
+    if (!stackId) return
+
+    const poll = async () => {
+      if (isCompleteRef.current) return
+      try {
+        const res = await buildApi.status(stackId)
+        const status = res.data
+        if (!signalRActiveRef.current) {
+          // SignalR hasn't kicked in yet — seed state from HTTP
+          setProgress({
+            phase: status.currentPhase,
+            percent: status.progressPercent,
+            step: status.currentStep,
+            logs: status.recentLogs ?? [],
+          })
+        }
+        if (status.currentPhase === BuildPhase.Completed) {
+          setIsComplete(true)
+          isCompleteRef.current = true
+        } else if (status.currentPhase === BuildPhase.Failed) {
+          setError(status.errorMessage ?? 'Build failed')
+          setIsComplete(true)
+          isCompleteRef.current = true
+        }
+      } catch {
+        // Polling failure is non-fatal; SignalR may still deliver events
+      }
+    }
+
+    // Initial fetch immediately so page shows real state straight away
+    poll()
+
+    const intervalId = setInterval(poll, POLL_INTERVAL_MS)
+    return () => clearInterval(intervalId)
+  }, [stackId])
 
   useEffect(() => {
     if (!stackId) return
@@ -59,6 +104,7 @@ export function useBuildProgress(stackId: string | null) {
       'BuildPhaseChanged',
       (receivedStackId: string, phase: BuildPhase) => {
         if (receivedStackId === stackId) {
+          signalRActiveRef.current = true
           setProgress((prev) => ({ ...prev, phase }))
         }
       }
@@ -68,6 +114,7 @@ export function useBuildProgress(stackId: string | null) {
       'BuildProgressUpdated',
       (receivedStackId: string, percent: number, step: string) => {
         if (receivedStackId === stackId) {
+          signalRActiveRef.current = true
           setProgress((prev) => ({
             ...prev,
             percent,
@@ -81,6 +128,7 @@ export function useBuildProgress(stackId: string | null) {
       'BuildLogReceived',
       (receivedStackId: string, logLine: string) => {
         if (receivedStackId === stackId) {
+          signalRActiveRef.current = true
           setProgress((prev) => ({
             ...prev,
             logs: [...prev.logs.slice(-50), logLine], // Keep last 50 lines
@@ -93,6 +141,8 @@ export function useBuildProgress(stackId: string | null) {
       'BuildCompleted',
       (receivedStackId: string) => {
         if (receivedStackId === stackId) {
+          signalRActiveRef.current = true
+          isCompleteRef.current = true
           setIsComplete(true)
         }
       }
@@ -102,6 +152,8 @@ export function useBuildProgress(stackId: string | null) {
       'BuildFailed',
       (receivedStackId: string, errorMessage: string) => {
         if (receivedStackId === stackId) {
+          signalRActiveRef.current = true
+          isCompleteRef.current = true
           setError(errorMessage)
           setIsComplete(true)
         }
