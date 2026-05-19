@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Search, Loader2, Users, RefreshCw } from 'lucide-react'
 import { useAllCharacters } from '@/hooks/useCharacters'
 import type { CharacterDto } from '@/types/account.types'
-import CharacterDetailPanel from './CharacterDetailPanel'
+import CharacterDetailDialog from './CharacterDetailDialog'
 
 const RACES: Record<number, string> = {
   1: 'Human', 2: 'Orc', 3: 'Dwarf', 4: 'Night Elf', 5: 'Undead',
@@ -18,9 +18,9 @@ const HORDE_RACES = new Set([2, 5, 6, 8, 10])
 
 interface CharactersTabProps {
   stackId: string
-  /** If provided, the Characters tab opens pre-filtered to this account */
+  /** If provided, filters the list to only this account's characters */
   accountId?: number
-  /** Optional className to control container sizing (defaults to viewport-based height) */
+  /** Optional className to control container sizing */
   className?: string
 }
 
@@ -29,7 +29,7 @@ export default function CharactersTab({ stackId, accountId, className }: Charact
   const [search, setSearch] = useState('')
   const [factionFilter, setFactionFilter] = useState<'all' | 'alliance' | 'horde'>('all')
   const [onlineOnly, setOnlineOnly] = useState(false)
-  const [selectedGuid, setSelectedGuid] = useState<number | null>(null)
+  const [selectedCharacter, setSelectedCharacter] = useState<CharacterDto | null>(null)
 
   const filtered = useMemo(() => {
     if (!characters) return []
@@ -49,7 +49,7 @@ export default function CharactersTab({ stackId, accountId, className }: Charact
       )
   }, [characters, search, factionFilter, onlineOnly, accountId])
 
-  const selectedCharacter = filtered.find(c => c.guid === selectedGuid) ?? null
+  const selectedGuid = selectedCharacter?.guid ?? null
 
   if (isLoading) {
     return (
@@ -71,9 +71,8 @@ export default function CharactersTab({ stackId, accountId, className }: Charact
   const onlineCount = (characters ?? []).filter(c => c.online).length
 
   return (
-    <div className={className ?? "flex gap-4 h-[calc(100vh-220px)] min-h-[500px]"}>
-      {/* Left: Character List */}
-      <div className="w-72 shrink-0 flex flex-col">
+    <>
+      <div className={className}>
         {/* Toolbar */}
         <div className="mb-3 space-y-2">
           <div className="flex items-center gap-2">
@@ -118,37 +117,31 @@ export default function CharactersTab({ stackId, accountId, className }: Charact
           </div>
         </div>
 
-        {/* Character list */}
-        <div className="flex-1 overflow-auto space-y-1 pr-1">
+        {/* Character grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
           {filtered.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm">No characters found</div>
+            <div className="col-span-full text-center py-8 text-gray-400 text-sm">No characters found</div>
           ) : (
             filtered.map(c => (
               <CharacterListItem
                 key={c.guid}
                 character={c}
                 selected={c.guid === selectedGuid}
-                onClick={() => setSelectedGuid(c.guid === selectedGuid ? null : c.guid)}
+                onClick={() => setSelectedCharacter(c)}
               />
             ))
           )}
         </div>
       </div>
 
-      {/* Right: Detail Panel */}
-      <div className="flex-1 overflow-auto">
-        {selectedCharacter ? (
-          <CharacterDetailPanel character={selectedCharacter} stackId={stackId} />
-        ) : (
-          <div className="h-full flex items-center justify-center bg-gray-50 border border-gray-200 rounded-lg">
-            <div className="text-center">
-              <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 text-sm">Select a character to view details</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      {selectedCharacter && (
+        <CharacterDetailDialog
+          character={selectedCharacter}
+          stackId={stackId}
+          onClose={() => setSelectedCharacter(null)}
+        />
+      )}
+    </>
   )
 }
 

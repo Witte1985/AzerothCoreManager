@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Shield, Ban, Trash2, Key, X, Users } from 'lucide-react'
-import type { AccountDto } from '@/types/account.types'
+import { Shield, Ban, Trash2, Key, X, Users, ChevronRight } from 'lucide-react'
+import type { AccountDto, CharacterDto } from '@/types/account.types'
 import BanAccountDialog from './dialogs/BanAccountDialog'
 import SetPasswordDialog from './dialogs/SetPasswordDialog'
 import DeleteAccountDialog from './dialogs/DeleteAccountDialog'
-import CharactersTab from '@/components/characters/CharactersTab'
+import CharacterDetailDialog from '@/components/characters/CharacterDetailDialog'
+import { useAllCharacters } from '@/hooks/useCharacters'
 import {
   useSetGmLevel,
   useBanAccount,
@@ -12,6 +13,15 @@ import {
   useDeleteAccount,
   useSetPassword,
 } from '@/hooks/useAccounts'
+
+const RACES: Record<number, string> = {
+  1: 'Human', 2: 'Orc', 3: 'Dwarf', 4: 'Night Elf', 5: 'Undead',
+  6: 'Tauren', 7: 'Gnome', 8: 'Troll', 10: 'Blood Elf', 11: 'Draenei',
+}
+const CLASSES: Record<number, string> = {
+  1: 'Warrior', 2: 'Paladin', 3: 'Hunter', 4: 'Rogue', 5: 'Priest',
+  6: 'Death Knight', 7: 'Shaman', 8: 'Mage', 9: 'Warlock', 11: 'Druid',
+}
 
 interface AccountDetailsPanelProps {
   account: AccountDto
@@ -22,6 +32,10 @@ interface AccountDetailsPanelProps {
 export default function AccountDetailsPanel({ account, stackId, onClose }: AccountDetailsPanelProps) {
   const [selectedGmLevel, setSelectedGmLevel] = useState(account.gmLevel.toString())
   const [activeDialog, setActiveDialog] = useState<string | null>(null)
+  const [selectedCharacter, setSelectedCharacter] = useState<CharacterDto | null>(null)
+
+  const { data: allCharacters } = useAllCharacters(stackId)
+  const accountCharacters = (allCharacters ?? []).filter(c => c.account === account.id)
 
   const setGmLevelMutation = useSetGmLevel(stackId)
   const banAccountMutation = useBanAccount(stackId)
@@ -221,13 +235,36 @@ export default function AccountDetailsPanel({ account, stackId, onClose }: Accou
 
           {/* Characters */}
           <div>
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <Users className="w-4 h-4 text-gray-500" />
               <h4 className="font-semibold text-gray-700 text-sm">
                 Characters ({account.characterCount})
               </h4>
             </div>
-            <CharactersTab stackId={stackId} accountId={account.id} />
+            {accountCharacters.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">No characters on this account.</p>
+            ) : (
+              <div className="space-y-1">
+                {accountCharacters.map(c => (
+                  <button
+                    key={c.guid}
+                    onClick={() => setSelectedCharacter(c)}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-md border border-gray-200 hover:border-blue-300 hover:bg-blue-50/40 transition-colors text-left"
+                  >
+                    <div>
+                      <span className="font-medium text-sm">{c.name}</span>
+                      <span className="ml-2 text-xs text-gray-500">
+                        Lv {c.level} {RACES[c.race] || '?'} {CLASSES[c.class] || '?'}
+                      </span>
+                      {c.online && (
+                        <span className="ml-2 text-xs text-green-600">● Online</span>
+                      )}
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -251,6 +288,13 @@ export default function AccountDetailsPanel({ account, stackId, onClose }: Accou
           accountUsername={account.username}
           onClose={() => setActiveDialog(null)}
           onSubmit={handleDelete}
+        />
+      )}
+      {selectedCharacter && (
+        <CharacterDetailDialog
+          character={selectedCharacter}
+          stackId={stackId}
+          onClose={() => setSelectedCharacter(null)}
         />
       )}
     </>

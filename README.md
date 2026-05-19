@@ -14,24 +14,25 @@ AzerothCore Manager is a comprehensive web application designed to simplify the 
 - 🐳 **Docker Stack Management** - Creates and manages isolated AzerothCore Docker Compose deployments
 - 🔨 **Automated Builds** - Clones, compiles, and containerizes AzerothCore from source with real-time progress tracking via SignalR
 - 📦 **Module System** - Browse, select, and install community modules during setup
+- ⚙️ **Module Configuration** - Apply per-module settings (AH Bot, AutoBalance, Playerbots, Transmog) via environment variables
 - 🎛️ **Container Lifecycle Control** - Start, stop, and restart server stacks with one click
 - 📊 **Real-Time Status Monitoring** - Live container status, health checks, and uptime tracking
 - 🔄 **Automatic Update Detection** - Hourly checks for AzerothCore and module updates via Git
 - ⬆️ **One-Click Updates** - Update stacks to the latest version and automatically rebuild
-- ⚙️ **Configuration Management** - Edit stack configurations (database, ports, server settings)
+- 🔧 **Configuration Management** - Edit stack configurations (database, ports, server settings)
 - 💾 **Draft Persistence** - Wizard automatically saves progress to localStorage
 - 🏗️ **Multi-Stack Support** - Manage unlimited AzerothCore environments simultaneously
 - 🔍 **Build Validation** - Pre-flight checks for port conflicts, name uniqueness, and resource requirements
 - 📜 **Build Log Streaming** - Real-time build logs with SignalR streaming in dedicated progress page
 - 📋 **Container Log Viewing** - Real-time log streaming with filtering, search, and auto-scrolling
 - 👥 **Account Management** - Create accounts, set GM levels, ban/unban users, reset passwords, and delete accounts via SOAP
+- 🧑‍🤝‍🧑 **Character Management** - View all characters, kick players, ban/unban, mute/unmute, revive, set level, rename, customize, send messages/items/money, add items, and view inventory
+- 🤖 **AH Bot Setup** - One-click creation of the Auction House Bot account with Alliance and Horde characters
 
 **📋 Planned:**
 - Advanced configuration editor (300+ worldserver.conf settings)
-- In-game player management (teleport, kick, announce)
-- Database backup and restore
+- Server-wide announcements
 - Performance metrics and analytics
-- Authentication and role-based access control
 
 ## About AzerothCore
 
@@ -93,7 +94,7 @@ The manager uses **Docker-in-Docker volume mounting** to enable nested container
 
 ## Project Status
 
-**Current Version**: Alpha (v0.1.0)
+**Current Version**: v0.2.0
 
 The core functionality is **working and tested**:
 - ✅ Stack creation wizard with validation
@@ -101,16 +102,18 @@ The core functionality is **working and tested**:
 - ✅ Stack lifecycle management (start, stop, restart)
 - ✅ Real-time container monitoring
 - ✅ Update detection and one-click updates
-- ✅ Module installation system
+- ✅ Module installation and configuration system
 - ✅ Configuration editing
 - ✅ Build log streaming UI with real-time SignalR updates
 - ✅ Container log viewing with real-time updates
 - ✅ Account management (SOAP-based)
+- ✅ Character management (kick, ban, mute, revive, set level, items, money, inventory)
+- ✅ AH Bot account and character setup
 
 **Known Limitations:**
-- No authentication/authorization yet (planned)
-- In-game player management not implemented (planned)
+- Server-wide announcements not yet implemented
 - No database backup/restore yet (planned)
+- No performance metrics dashboard yet (planned)
 
 ## Requirements
 
@@ -452,7 +455,7 @@ docker logs azerothcore-manager
 
 ### Update notification won't clear
 
-This was a bug fixed in v0.1.0. If you see updates available for identical SHAs:
+This was a bug fixed in v0.1.0. If you see updates available for identical SHAs after upgrading to v0.2.0:
 
 1. Rebuild manager container:
    ```bash
@@ -492,10 +495,9 @@ Contributions are welcome! This project is actively developed and accepting PRs.
 ### Areas for Contribution
 
 **High Priority:**
-- In-game player management (teleport, kick, announce)
+- Server-wide announcements
 - Advanced worldserver.conf editor
 - Database backup/restore functionality
-- Authentication and authorization system
 
 **Medium Priority:**
 - Performance metrics dashboard
@@ -521,9 +523,12 @@ When reporting bugs, include:
 
 ## Roadmap
 
-**v0.2.0 - Player Management** (Next Release)
-- In-game player teleportation
-- Player kick/ban from world
+**~~v0.2.0 - Player Management~~** ✅ Delivered
+- Character management (kick, ban, mute, revive, set level, items, money, inventory)
+- Account management (create, GM level, ban, password reset, delete)
+- AH Bot account setup
+
+**v0.3.0 - Server Announcements & Advanced Configuration** (Next Release)
 - Server-wide announcements
 
 **v0.3.0 - Advanced Configuration**
@@ -535,11 +540,6 @@ When reporting bugs, include:
 - Database backup automation
 - One-click restore
 - Scheduled backups
-
-**v0.5.0 - Authentication**
-- User accounts and login
-- Role-based access control
-- Multi-user support
 
 **v1.0.0 - Production Ready**
 - Complete documentation
