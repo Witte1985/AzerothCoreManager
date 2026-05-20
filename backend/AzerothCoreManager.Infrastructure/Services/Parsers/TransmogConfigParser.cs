@@ -161,10 +161,11 @@ public class TransmogConfigParser : IModuleConfigParser
 
     private string GenerateEnvVarName(string key)
     {
-        // Convert "Transmogrification.Enable" to "AC_TRANSMOG_ENABLE"
+        // Convert "Transmogrification.Enable" to "AC_TRANSMOGRIFICATION_ENABLE"
         var cleaned = key.Replace("Transmogrification.", "");
         var envVar = Regex.Replace(cleaned, @"([a-z])([A-Z])", "$1_$2");
-        return $"AC_TRANSMOG_{envVar.ToUpperInvariant()}";
+        envVar = envVar.Replace(".", "_");
+        return $"AC_TRANSMOGRIFICATION_{envVar.ToUpperInvariant()}";
     }
 
     private ConfigOptionType InferType(string value)

@@ -196,11 +196,11 @@ public class AutoBalanceConfigParser : IModuleConfigParser
 
     private string GenerateEnvVarName(string key)
     {
-        // Convert "AutoBalance.Enable.Global" to "AC_AUTOBALANCE_ENABLE_GLOBAL"
+        // Convert "AutoBalance.Enable.Global" to "AC_AUTO_BALANCE_ENABLE_GLOBAL"
         var cleaned = key.Replace("AutoBalance.", "");
         var envVar = Regex.Replace(cleaned, @"([a-z])([A-Z])", "$1_$2");
         envVar = envVar.Replace(".", "_");
-        return $"AC_AUTOBALANCE_{envVar.ToUpperInvariant()}";
+        return $"AC_AUTO_BALANCE_{envVar.ToUpperInvariant()}";
     }
 
     private ConfigOptionType InferType(string value)

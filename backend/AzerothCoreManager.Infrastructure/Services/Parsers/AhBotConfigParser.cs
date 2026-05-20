@@ -177,11 +177,11 @@ public class AhBotConfigParser : IModuleConfigParser
 
     private string GenerateEnvVarName(string key)
     {
-        // Convert "AuctionHouseBot.EnableSeller" to "AC_AHBOT_ENABLE_SELLER"
+        // Convert "AuctionHouseBot.Buyer.Enabled" to "AC_AUCTION_HOUSE_BOT_BUYER_ENABLED"
         var cleaned = key.Replace("AuctionHouseBot.", "");
         var envVar = Regex.Replace(cleaned, @"([a-z])([A-Z])", "$1_$2");
         envVar = envVar.Replace(".", "_");
-        return $"AC_AHBOT_{envVar.ToUpperInvariant()}";
+        return $"AC_AUCTION_HOUSE_BOT_{envVar.ToUpperInvariant()}";
     }
 
     private ConfigOptionType InferType(string value)
