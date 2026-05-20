@@ -144,7 +144,7 @@ public class AhBotConfigParser : IModuleConfigParser
                         Key: key,
                         EnvVarName: GenerateEnvVarName(key),
                         DefaultValue: doc.DefaultValue,
-                        Type: InferType(doc.DefaultValue),
+                        Type: InferType(key, doc.DefaultValue),
                         Description: doc.Description
                     ));
                 }
@@ -158,7 +158,7 @@ public class AhBotConfigParser : IModuleConfigParser
                         Key: key,
                         EnvVarName: GenerateEnvVarName(key),
                         DefaultValue: value,
-                        Type: InferType(value),
+                        Type: InferType(key, value),
                         Description: $"Configuration for {key.Replace("AuctionHouseBot.", "")}"
                     ));
                 }
@@ -184,8 +184,16 @@ public class AhBotConfigParser : IModuleConfigParser
         return $"AC_AUCTION_HOUSE_BOT_{envVar.ToUpperInvariant()}";
     }
 
-    private ConfigOptionType InferType(string value)
+    private ConfigOptionType InferType(string key, string value)
     {
+        // GUID/ID list fields are comma-separated values
+        var suffix = key.Contains('.') ? key[(key.LastIndexOf('.') + 1)..] : key;
+        if (suffix.EndsWith("GUIDs", StringComparison.OrdinalIgnoreCase) ||
+            suffix.EndsWith("Ids", StringComparison.OrdinalIgnoreCase))
+        {
+            return ConfigOptionType.StringList;
+        }
+
         // Boolean detection
         if (value.Equals("true", StringComparison.OrdinalIgnoreCase) || 
             value.Equals("false", StringComparison.OrdinalIgnoreCase))

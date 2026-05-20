@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Loader2, AlertCircle } from 'lucide-react'
+import { X, Loader2, AlertCircle, Plus } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { moduleApi } from '@/services/api'
 import type { ModuleConfigOption } from '@/types/moduleConfig'
@@ -52,8 +52,8 @@ export function ModuleConfigModal({
         // Match against actual module config keys
         // For playerbots: AC_AI_PLAYERBOT_* 
         // For autobalance: AC_AUTO_BALANCE_*
-        // For transmog: AC_TRANSMOG_*
-        // For ah-bot: AC_AH_BOT_*
+        // For transmog: AC_TRANSMOGRIFICATION_*
+        // For ah-bot: AC_AUCTION_HOUSE_BOT_*
         
         // Generate patterns based on module ID
         if (moduleId === 'mod-playerbots') {
@@ -430,6 +430,15 @@ function DynamicFormField({ option, value, onChange, disabled }: DynamicFormFiel
           />
         )
 
+      case 'StringList':
+        return (
+          <IdListInput
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+          />
+        )
+
       case 'String':
       default:
         return (
@@ -460,6 +469,83 @@ function DynamicFormField({ option, value, onChange, disabled }: DynamicFormFiel
         </code>
       </div>
       <div className="mt-3">{renderInput()}</div>
+    </div>
+  )
+}
+
+interface IdListInputProps {
+  value: string
+  onChange: (value: string) => void
+  disabled?: boolean
+}
+
+function IdListInput({ value, onChange, disabled }: IdListInputProps) {
+  const [inputValue, setInputValue] = useState('')
+
+  const ids = value
+    ? value.split(',').map(s => s.trim()).filter(Boolean)
+    : []
+
+  const addId = () => {
+    const trimmed = inputValue.trim()
+    if (!trimmed || ids.includes(trimmed)) return
+    onChange([...ids, trimmed].join(','))
+    setInputValue('')
+  }
+
+  const removeId = (id: string) => {
+    onChange(ids.filter(i => i !== id).join(','))
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      addId()
+    }
+  }
+
+  return (
+    <div className={disabled ? 'opacity-50 pointer-events-none' : ''}>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {ids.map(id => (
+          <span
+            key={id}
+            className="inline-flex items-center gap-1 rounded bg-blue-100 px-2 py-0.5 text-xs font-mono font-medium text-blue-800"
+          >
+            {id}
+            <button
+              type="button"
+              onClick={() => removeId(id)}
+              className="text-blue-500 hover:text-blue-800"
+              aria-label={`Remove ${id}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        {ids.length === 0 && (
+          <span className="text-xs text-gray-400 italic">No IDs added</span>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Enter GUID and press Enter"
+          className="flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          type="button"
+          onClick={addId}
+          disabled={!inputValue.trim()}
+          className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Plus className="h-4 w-4" />
+          Add
+        </button>
+      </div>
     </div>
   )
 }

@@ -10,7 +10,7 @@ interface ModuleSetupWarningsProps {
   stack: StackDetailsDto
 }
 
-const AH_BOT_GUID_KEY = 'AC_AHBOT_GUIDS'
+const AH_BOT_GUID_KEY = 'AC_AUCTION_HOUSE_BOT_GUIDS'
 
 /**
  * Renders post-setup action warnings for the stack and modules that require additional

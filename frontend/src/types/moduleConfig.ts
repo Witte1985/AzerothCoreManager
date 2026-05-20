@@ -17,5 +17,6 @@ export enum ConfigOptionType {
   Boolean = 'Boolean',
   Number = 'Number',
   String = 'String',
-  Enum = 'Enum'
+  Enum = 'Enum',
+  StringList = 'StringList'
 }

@@ -20,5 +20,6 @@ public enum ConfigOptionType
     Boolean,
     Number,
     String,
-    Enum
+    Enum,
+    StringList
 }
