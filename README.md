@@ -1,5 +1,7 @@
 # AzerothCore Manager
 
+[![CI](https://github.com/Witte1985/AzerothCoreManager/actions/workflows/ci.yml/badge.svg)](https://github.com/Witte1985/AzerothCoreManager/actions/workflows/ci.yml)
+
 A modern web-based management application for private World of Warcraft servers based on [AzerothCore](https://www.azerothcore.org/).
 
 ## Overview
