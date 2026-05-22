@@ -5,7 +5,7 @@ This directory contains detailed specifications for specialized agents used in t
 ## Available Agents
 
 ### 1. Frontend Specialist  
-**File:** `frontend-specialist.md`  
+**File:** `frontend-specialist.agent.md`  
 **Focus:** React, Vite, TypeScript, UI/UX, Setup Wizards, Real-time UI  
 **Use for:** Component development, wizard flows, real-time updates, state management, accessibility
 
@@ -33,7 +33,7 @@ When working with GitHub Copilot CLI or spawning specialized agents, reference t
 
 ```
 I need help creating the setup wizard UI.
-Please act as the Frontend Specialist defined in .github/agents/frontend-specialist.md.
+Please act as the Frontend Specialist defined in .github/agents/frontend-specialist.agent.md.
 
 Context:
 - Multi-step wizard (5 steps: name, database, ports, advanced, review)
