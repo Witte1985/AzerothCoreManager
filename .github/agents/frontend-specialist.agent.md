@@ -1,3 +1,8 @@
+---
+name: frontend-specialist
+description: "Frontend implementation specialist for React, TypeScript, Vite, and UI/UX workflows in AzerothCore Manager. Use for component development, setup wizard flows, real-time UI, state management, and accessibility-focused frontend tasks."
+---
+
 # Frontend Specialist Agent
 
 ## Role
